@@ -80,7 +80,7 @@ In ogni archivio l'app crea una sottocartella per cliente chiamata `CLI-001 – 
 - **Formato**: `CODICE_TIPO_Progetto_Cliente_FilippoMauro[_Vxx]`, per esempio `2026-016_CTR_VideocorsoADHD_GamMedical_FilippoMauro_V02`.
 - **Tipi**: PRV, CTR, ATT. Numerazione unica per anno e per tutti i tipi.
 - **Progetto**: titolo in CamelCase senza accenti, tagliato a 32 caratteri.
-- **Cliente**: ragione sociale in CamelCase senza srl, srls, sas, spa, snc (anche con i punti, es. S.r.l.) e senza ssdrl, ssd, asd, aps, sapa, ets, onlus, odv; le parole tutte maiuscole diventano "Parola" (`SALA GIOCHI S.r.l.` → `SalaGiochi`, `GAM Medical srls` → `GamMedical`); `Personale` se manca. Il titolo invece resta com'è scritto (`ADHD` resta `ADHD`).
+- **Cliente**: ragione sociale in CamelCase senza srl, srls, sas, spa, snc (anche con i punti, es. S.r.l.) e senza s.b., società benefit, ssdrl, ssd, asd, aps, sapa, ets, onlus, odv; le parole tutte maiuscole diventano "Parola" (`SALA GIOCHI S.r.l.` → `SalaGiochi`, `GAM Medical srls` → `GamMedical`); `Personale` se manca. Il titolo invece resta com'è scritto (`ADHD` resta `ADHD`).
 - **Stesso codice**: una lista ATT o un contratto creati da un preventivo prendono lo stesso codice del preventivo. Il tipo distingue i documenti. Un contratto nato da zero prende un codice nuovo.
 - **Preventivo dettagliato**: stesso codice e stessa versione, con il suffisso `_Dettaglio` prima della versione.
 - **Copie di cortesia**: `FT-2026-038_CDC_Cliente_FilippoMauro[_Vxx]`, usando il numero di fattura di Fiscozen.
@@ -259,6 +259,8 @@ Le fasi restano vuote.
 1. "Carica PDF Fiscozen": pdf.js estrae il testo e l'app riconosce numero e data, destinatario, righe, rivalsa, bollo, totale, intestatario, IBAN, scadenza e note.
 2. Il cliente si riconosce dalla P.IVA o dal C.F. nel foglio Clienti.
 3. Schermata di verifica: tutto modificabile, con controllo che righe + rivalsa + bollo = totale. Se non torna, la generazione è bloccata.
+
+**Com'è fatto il PDF di Fiscozen** (tarato su tre fatture vere, in `esempi-fiscozen/`, esclusa da git perché contiene dati dei clienti): in alto "Fattura # 25/2026" con la data; emittente nella metà sinistra e "Destinatario:" nella metà destra, sulle stesse righe (per questo `testoPdf` tiene separate le due metà); righe tra "Descrizione | Importo" e "Totale:"; "Modalità di pagamento" a sinistra (Intestato a, IBAN, Da saldare entro il) e "Note" a destra. Nelle fatture viste non ci sono righe di rivalsa né di bollo: i campi restano vuoti e il controllo è righe = totale. Il riquadro "Testo letto dal PDF" nella verifica mostra cosa ha letto l'app, per capire subito se un PDF diverso non torna.
 
 ---
 

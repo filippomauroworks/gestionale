@@ -32,89 +32,105 @@ async function caricaPdfjs(){
 }
 
 /* Testo del PDF riga per riga: i pezzi con la stessa altezza formano una riga,
-   ordinati da sinistra; dove c'è uno spazio largo si mette " | " (colonne). */
+   ordinati da sinistra; dove c'è uno spazio largo si mette " | " (colonne).
+   Ogni riga tiene anche il testo della metà sinistra e di quella destra della pagina:
+   Fiscozen mette l'emittente a sinistra e il destinatario a destra, sulle stesse righe. */
 export async function testoPdf(file){
   const lib = await caricaPdfjs();
   const pdf = await lib.getDocument({data: new Uint8Array(await file.arrayBuffer())}).promise;
   const righe = [];
   for (let n = 1; n <= pdf.numPages; n++){
-    const pag = await pdf.getPage(n);
+    const pag = await pdf.getPage(n), meta = pag.getViewport({scale: 1}).width / 2;
     const t = await pag.getTextContent();
     const pezzi = t.items.filter(i => i.str.trim()).map(i => ({s: i.str, x: i.transform[4], y: i.transform[5], w: i.width}));
     pezzi.sort((a, b) => b.y - a.y || a.x - b.x);
-    let riga = null;
+    const gruppi = [];
     for (const p of pezzi){
-      if (riga && Math.abs(riga.y - p.y) < 3){ riga.pezzi.push(p); continue; }
-      riga = {y: p.y, pezzi: [p]}; righe.push(riga);
+      const g = gruppi[gruppi.length - 1];
+      if (g && Math.abs(g.y - p.y) < 3) g.pezzi.push(p); else gruppi.push({y: p.y, pezzi: [p]});
+    }
+    const unisci = lista => {
+      let s = "", fine = null;
+      for (const p of lista){
+        if (fine !== null) s += p.x - fine > 18 ? " | " : (p.x - fine > 1.5 ? " " : "");
+        s += p.s; fine = p.x + p.w;
+      }
+      return s.replace(/\s+/g, " ").trim();
+    };
+    for (const g of gruppi){
+      g.pezzi.sort((a, b) => a.x - b.x);
+      righe.push({t: unisci(g.pezzi), sx: unisci(g.pezzi.filter(p => p.x < meta)), dx: unisci(g.pezzi.filter(p => p.x >= meta))});
     }
   }
-  return righe.map(r => {
-    r.pezzi.sort((a, b) => a.x - b.x);
-    let s = "", fine = null;
-    for (const p of r.pezzi){
-      if (fine !== null) s += p.x - fine > 18 ? " | " : (p.x - fine > 1.5 ? " " : "");
-      s += p.s; fine = p.x + p.w;
-    }
-    return s.replace(/\s+/g, " ").trim();
-  }).filter(Boolean);
+  return righe.filter(r => r.t);
 }
 
 const IMPORTO = /(?:€\s*)?(-?\d{1,3}(?:\.\d{3})*,\d{2})(?:\s*€)?/;
 const importoIn = s => { const m = s.match(new RegExp(IMPORTO.source + "\\s*$")); return m ? m[1] : null; };
 const dataIso = s => { const m = s.match(/(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})/); return m ? `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}` : ""; };
+// "P.IVA: 12307510011" → "P.IVA 12307510011"; "C.F.: XYZ" → "C.F. XYZ"
+const etichetta = s => s.replace(/^(p\.?\s*iva|c\.?\s*f\.?|codice fiscale)\s*:\s*/i, (m, e) => /iva/i.test(e) ? "P.IVA " : "C.F. ");
 
-/* Riconoscimento dei campi. Le regole cercano le parole che Fiscozen mette accanto
-   a ogni dato; quello che non si trova resta vuoto e si scrive nella verifica. */
+/* Riconoscimento dei campi, tarato sulle copie di cortesia di Fiscozen:
+   "Fattura # 25/2026  22/06/2026" in alto, emittente a sinistra e "Destinatario:" a destra,
+   righe tra "Descrizione | Importo" e "Totale:", pagamento a sinistra e "Note" a destra.
+   Rivalsa e bollo si leggono se ci sono; quello che non si trova resta vuoto. */
 export function leggiFattura(righe){
-  const tutto = righe.join("\n"), D = {righe: [], dest: ["", "", "", ""], note: "", intestatario: "", iban: "", scadenza: "", riv: "", bollo: "", totale: "", num: "", data: "", piva: "", cf: ""};
-  // Numero e data
-  let m = tutto.match(/fattura\s*(?:n\.?|nr\.?|numero)?\s*[:°]?\s*(\d+)\s*\/\s*(\d{4})/i) || tutto.match(/\bn(?:umero|r)?\.?\s*[:°]?\s*(\d+)\s*\/\s*(\d{4})/i);
+  const T = righe.map(r => r.t), tutto = T.join("\n");
+  const D = {righe: [], dest: ["", "", "", ""], note: "", intestatario: "", iban: "", scadenza: "", riv: "", bollo: "", totale: "", num: "", data: "", piva: "", cf: ""};
+  // Numero e data: nella riga "Fattura"
+  const rf = T.find(r => /^fattura\b/i.test(r)) || "";
+  let m = rf.match(/(\d+)\s*\/\s*(\d{4})(?![\/\d])/) || tutto.match(/fattura[\s|#:n°.]*(\d+)\s*\/\s*(\d{4})/i);
   if (m) D.num = `${+m[1]}/${m[2]}`;
-  m = tutto.match(/(?:data(?:\s+(?:fattura|documento|emissione))?|del)\s*:?\s*(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/i);
+  m = rf.match(/(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/) || tutto.match(/(?:data(?:\s+(?:fattura|documento|emissione))?|del)\s*:?\s*(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/i);
   if (m) D.data = dataIso(m[1]);
-  // IBAN e intestatario
-  m = tutto.replace(/[  ]/g, "").match(/IBAN:?([A-Z]{2}\d{2}[A-Z0-9]{11,30})/i);
-  if (m) D.iban = m[1].toUpperCase().replace(/(.{4})/g, "$1 ").trim();
+  // IBAN, intestatario, scadenza
+  m = tutto.replace(/[ \u00a0]/g, "").match(/IBAN:?([A-Z]{2}\d{2}[A-Z0-9]{11,30})/i);
+  if (m) D.iban = m[1].toUpperCase();
   m = tutto.match(/(?:intestat[oa]|beneficiario)\s*(?:a)?\s*:?\s*([^\n|]+)/i);
   if (m) D.intestatario = m[1].trim();
-  // Scadenza
   m = tutto.match(/(?:scadenza|da saldare entro|entro il)\s*(?:il)?\s*:?\s*(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4})/i);
   if (m) D.scadenza = dataIso(m[1]);
-  // Totali: si cercano dall'ultima riga che li nomina
-  const ultimaCon = re => { for (let i = righe.length - 1; i >= 0; i--) if (re.test(righe[i])){ const v = importoIn(righe[i]) || (righe[i + 1] && importoIn(righe[i + 1])); if (v) return v; } return ""; };
+  // Totali: dall'ultima riga che li nomina
+  const ultimaCon = re => { for (let i = T.length - 1; i >= 0; i--) if (re.test(T[i])){ const v = importoIn(T[i]) || (T[i + 1] && importoIn(T[i + 1])); if (v) return v; } return ""; };
   D.riv = ultimaCon(/rivalsa|contributo\s+(?:integrativo|previdenziale)|inps/i);
-  D.bollo = ultimaCon(/bollo/i);
-  D.totale = ultimaCon(/totale\s+(?:documento|fattura|da pagare|dovuto)|netto a pagare|^totale\b/i);
-  // Destinatario: il blocco dopo "Destinatario", "Cliente" o "Spett.le"
-  const iDest = righe.findIndex(r => /^(destinatario|cliente|spett\.?\s*le|intestato a|fatturato a)\b/i.test(r));
+  D.bollo = ultimaCon(/marca da bollo|bollo\s*:|^bollo\b/i);
+  D.totale = ultimaCon(/^totale\b|totale\s+(?:documento|fattura|da pagare|dovuto)|netto a pagare/i);
+  // Destinatario: colonna destra, da "Destinatario:" fino a "Descrizione"
+  const iDest = righe.findIndex(r => /destinatario/i.test(r.dx || r.t));
   if (iDest >= 0){
     const blocco = [];
-    for (let i = iDest; i < righe.length && blocco.length < 5; i++){
-      const r = righe[i].split(" | ")[0].replace(/^(destinatario|cliente|spett\.?\s*le|intestato a|fatturato a)\s*:?\s*/i, "").trim();
-      if (!r) continue;
-      if (/^(descrizione|data|fattura|n\.|numero)\b/i.test(r)) break;
-      blocco.push(r);
+    for (let i = iDest; i < righe.length; i++){
+      if (/^descrizione\b/i.test(righe[i].t)) break;
+      const r = (righe[i].dx || "").replace(/^destinatario\s*:?\s*/i, "").trim();
+      if (r) blocco.push(r);
     }
-    D.dest = [blocco[0] || "", blocco.slice(1).find(x => /p\.?\s*iva|c\.?\s*f\.?|codice fiscale/i.test(x)) || "", blocco.slice(1).find(x => /\d{5}/.test(x) && !/p\.?\s*iva/i.test(x)) || "", ""];
+    const ids = blocco.slice(1).filter(x => /^(p\.?\s*iva|c\.?\s*f\.?|codice fiscale)/i.test(x));
+    const indirizzo = blocco.slice(1).filter(x => !ids.includes(x));
+    D.dest = [blocco[0] || "", ids.map(etichetta).join(" · "), indirizzo.join(", "), ""];
+    for (const x of ids){
+      const v = x.replace(/^.*?:\s*/, "").replace(/\s/g, "").toUpperCase().replace(/^IT(?=\d{11}$)/, "");
+      if (/iva/i.test(x)) D.piva = v; else D.cf = v;
+    }
   }
-  m = tutto.match(/p\.?\s*iva\s*:?\s*(?:IT)?\s*(\d{11})/gi);
-  if (m){ const tutte = m.map(x => x.match(/(\d{11})/)[1]); D.piva = tutte.find(x => x !== "02971460429") || ""; }
-  m = tutto.match(/\b([A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z])\b/gi);
-  if (m) D.cf = m.map(x => x.toUpperCase()).find(x => !x.startsWith("MRAFPP")) || "";
-  // Righe: tra l'intestazione "Descrizione" e la prima riga dei totali, quelle che finiscono con un importo
-  const iDesc = righe.findIndex(r => /descrizione/i.test(r));
-  const iTot = righe.findIndex((r, i) => i > iDesc && /imponibile|totale|rivalsa|bollo|contributo/i.test(r));
+  // Righe: tra "Descrizione" e la prima riga dei totali, quelle che finiscono con un importo
+  const iDesc = T.findIndex(r => /^descrizione\b/i.test(r));
+  const iTot = T.findIndex((r, i) => i > iDesc && /^(imponibile|totale|rivalsa|marca da bollo|bollo|contributo)/i.test(r));
   if (iDesc >= 0){
-    for (let i = iDesc + 1; i < (iTot > 0 ? iTot : righe.length); i++){
-      const imp = importoIn(righe[i]);
-      const testo = righe[i].replace(new RegExp(IMPORTO.source + "\\s*$"), "").split(" | ").filter(x => x.trim() && !IMPORTO.test(x) && !/^\d+([,.]\d+)?$/.test(x.trim())).join(" ").trim();
+    for (let i = iDesc + 1; i < (iTot > 0 ? iTot : T.length); i++){
+      const imp = importoIn(T[i]);
+      const testo = T[i].replace(new RegExp(IMPORTO.source + "\\s*$"), "").split(" | ").filter(x => x.trim()).join(" ").trim();
       if (imp && testo) D.righe.push({desc: testo, imp});
-      else if (!imp && testo && D.righe.length && !/^(qt|quantit|prezzo|importo)/i.test(testo)) D.righe[D.righe.length - 1].desc += " " + testo;
+      else if (!imp && testo && D.righe.length) D.righe[D.righe.length - 1].desc += " " + testo;
     }
   }
-  // Note: il testo sul regime forfettario, se c'è
-  m = tutto.match(/(operazione\s+(?:in franchigia|effettuata|senza applicazione)[\s\S]{0,400}?(?:\.\s*\n|$))/i);
-  D.note = m ? m[1].replace(/\s*\n\s*/g, " ").replace(/ \| /g, " ").trim() : NOTA_BASE;
+  // Note: colonna destra sotto l'intestazione "Note"
+  const iNote = righe.findIndex(r => /^note$/i.test(r.dx));
+  // Una riga che comincia con la maiuscola dopo una senza punto finale è un paragrafo nuovo: ci va il punto.
+  if (iNote >= 0) D.note = righe.slice(iNote + 1).map(r => r.dx).filter(Boolean)
+    .reduce((s, x) => !s ? x : s + (/[.:;!?]$/.test(s) || !/^[A-ZÀ-Ý]/.test(x) ? " " : ". ") + x, "").replace(/\s+/g, " ").trim();
+  if (D.note && !/[.!?]$/.test(D.note)) D.note += ".";
+  if (!D.note) D.note = NOTA_BASE;
   return D;
 }
 
@@ -152,7 +168,7 @@ export async function apri(file, versione){
     const pulisci = s => String(s || "").replace(/\s/g, "").toUpperCase().replace(/^IT/, "");
     const cli = C.clienti.find(c => (l.piva && pulisci(c.piva) === l.piva) || (l.cf && pulisci(c.cf) === l.cf));
     const conto = C.conti.find(k => k.iban.replace(/\s/g, "") === l.iban.replace(/\s/g, ""));
-    D = Object.assign(l, {file: file.name, testo: righe, ver: versione || null, cli: cli?.id || "", riconosciuto: !!cli,
+    D = Object.assign(l, {file: file.name, testo: righe.map(r => r.t), ver: versione || null, cli: cli?.id || "", riconosciuto: !!cli,
       intestatario: l.intestatario || conto?.intestatario || ""});
     if (!D.righe.length) D.righe = [{desc: "", imp: ""}];
     closeModal();
