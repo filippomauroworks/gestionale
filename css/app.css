@@ -325,3 +325,4 @@ textarea.inp{min-height:88px;resize:vertical;max-width:600px;line-height:1.45}
 .set-row .ok-det{display:block;font-size:13px;color:var(--ok);margin-top:2px}
 .st-err{color:var(--err);font-size:14px}
 .set-grp{font-family:var(--sans);font-size:14px;font-weight:600;margin:24px 0 6px}
+.data-row{flex-wrap:wrap}

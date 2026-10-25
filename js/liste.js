@@ -11,13 +11,13 @@ import { cercaPerNome, creaCartella, cestina, MIME_CARTELLA } from "./drive.js";
 import { nomeFile, nomeCartellaCliente } from "./nomi.js";
 import { rigaDocumento, filtra, linkDoc, scaricaPdf } from "./elenco.js";
 import { gestisciErrore, CollegamentoMancante } from "./errori.js";
-import { opzione, interruttore, selezione, barraPassi, salvata, copia, avanzamento } from "./procedura.js";
+import { opzione, interruttore, selezione, barraPassi, salvata, copia, avanzamento, campoDate, azioneDate, erroreDate } from "./procedura.js";
 import { registraApritore, avvisoModifica, ultimaVersione } from "./riapertura.js";
-import { numero, centesimi, eur, eurSegno, cifraCampo, qta, totali, fiscozen, scontoNoleggio, giorniTra, oggi, dataLunga, dataBreve, elencoDate } from "./calcoli.js";
+import { numero, centesimi, eur, eurSegno, cifraCampo, qta, totali, fiscozen, scontoNoleggio, giorniTra, oggi, dataLunga, dataBreve, elencoDate, normalizzaDate } from "./calcoli.js";
 
 /* ---------- Bozza ---------- */
 const BKEY = "fm-bozza-lista-v1";
-const BASE = () => ({step: "tipo", visited: ["tipo"], kind: "lavoro", fromPrv: "", cli: "", titolo: "", date: [""], luogo: "", note: "",
+const BASE = () => ({step: "tipo", visited: ["tipo"], kind: "lavoro", fromPrv: "", cli: "", titolo: "", date: [{da: "", a: "", intervallo: false}], luogo: "", note: "",
   ritiro: "", riconsegna: "", giorni: "", items: {}, noleggi: [], filter: "", noRound: true, cifra: "", edit: null, saved: null});
 let b = store.get(BKEY, null);
 if (b) b = Object.assign(BASE(), b);
@@ -121,6 +121,7 @@ export async function vistaProcedura(view){
     gestisciErrore(e, () => vistaProcedura(view));
     return;
   }
+  b.date = normalizzaDate(b.date); if (!b.date.length) b.date = BASE().date;
   // Articoli che non esistono più nel foglio: via dalla bozza.
   Object.keys(b.items).forEach(id => { if (!articolo(id)) delete b.items[id]; });
   if (!passi().includes(b.step)) b.step = "articoli";
@@ -203,9 +204,7 @@ function passoHTML(){
       : `<h2 class="field-q">Il lavoro</h2><p class="hint">${b.fromPrv ? `Dati ripresi dal preventivo ${esc(b.fromPrv)}: controllali.` : "Cliente, date e luogo sono facoltativi."}</p>
         <label class="f"><span>Titolo del lavoro</span><input class="inp" ${A}="titolo" value="${esc(b.titolo)}" placeholder="Es. Convention di fine anno"></label>
         <label class="f"><span>Cliente</span>${selezione(`${A}="cli" style="max-width:420px"`, [["", "Lavoro personale"], ...opzClienti], b.cli)}</label>
-        <div class="f"><span>Date di ripresa</span>
-          ${b.date.map((x, i) => `<div class="fase-row"><input class="inp" type="date" data-adate="${i}" value="${esc(x)}" style="max-width:200px" aria-label="Data ${i + 1}"><button class="btn small" data-action="a-datedel" data-i="${i}">Togli</button></div>`).join("")}
-          <button class="btn small" data-action="a-dateadd" style="margin-top:4px">Aggiungi data</button></div>
+        ${campoDate("a", b.date, "Date di ripresa")}
         <label class="f"><span>Luogo</span><input class="inp" ${A}="luogo" value="${esc(b.luogo)}" placeholder="Es. Torino"></label>
         <label class="f"><span>Note (facoltative)</span><textarea class="inp" ${A}="note" placeholder="Es. Ricaricare le batterie V-mount la sera prima">${esc(b.note)}</textarea></label>`;
 
@@ -263,13 +262,13 @@ function codiceProvvisorio(){
 }
 
 function riepilogo(){
-  const c = cliente(), trattino = `<span class="muted">–</span>`, date = b.date.filter(Boolean);
+  const c = cliente(), trattino = `<span class="muted">–</span>`, date = elencoDate(b.date);
   return `<dl class="sum">
     <dt>Tipo</dt><dd>${b.kind === "noleggio" ? "Noleggio a terzi" : "Lavoro"}${b.fromPrv ? `, dal preventivo ${esc(b.fromPrv)}` : ""}</dd>
     <dt>${b.kind === "noleggio" ? "Noleggia" : "Cliente"}</dt><dd>${c ? esc(c.nome) : (b.kind === "noleggio" ? trattino : "Lavoro personale")}</dd>
     <dt>Titolo</dt><dd>${titolo() ? esc(titolo()) : trattino}</dd>
     ${b.kind === "noleggio" ? `<dt>Periodo</dt><dd>${b.ritiro && b.riconsegna ? `${dataBreve(b.ritiro)} → ${dataBreve(b.riconsegna)}, ${qta(giorni())} gg` : trattino}</dd>`
-      : `<dt>Riprese</dt><dd>${date.length ? date.map(dataBreve).join(", ") : "Da definire"}${b.luogo ? ", " + esc(b.luogo) : ""}</dd>`}
+      : `<dt>Riprese</dt><dd>${date ? esc(date) : "Da definire"}${b.luogo ? ", " + esc(b.luogo) : ""}</dd>`}
     <dt>Articoli</dt><dd>${Object.keys(b.items).length} (${pezzi()} pezzi)${b.noleggi.length ? `, ${b.noleggi.length} a noleggio` : ""}</dd>
     ${b.kind === "noleggio" ? `<dt>Totale</dt><dd>${conto().servizi > 0 ? eur(conto().voluto) : trattino}</dd>` : ""}
   </dl>`;
@@ -284,6 +283,7 @@ function valida(id){
       if (giorniTra(b.ritiro, b.riconsegna) < 0) return "La riconsegna non può essere prima del ritiro.";
       if (!(giorni() > 0)) return "Indica i giorni di noleggio.";
     } else if (!b.titolo.trim()) return "Scrivi il titolo del lavoro.";
+    else if (erroreDate(b.date)) return erroreDate(b.date);
   }
   if (id === "articoli"){
     if (!Object.keys(b.items).length && !b.noleggi.length) return "Spunta almeno un articolo.";
@@ -321,7 +321,7 @@ const RIDISEGNA = ["kind", "fromPrv", "cli", "noRound", "ritiro", "riconsegna"];
 async function daPreventivo(codice){
   try {
     const d = trova(codice, "PRV"), p = await datiVersione(d);
-    Object.assign(b, {fromPrv: codice, cli: d.cliente?.id || "", titolo: d.titolo, date: p.date?.length ? [...p.date] : [""], luogo: p.luogo || ""});
+    Object.assign(b, {fromPrv: codice, cli: d.cliente?.id || "", titolo: d.titolo, date: normalizzaDate(p.date).length ? normalizzaDate(p.date) : BASE().date, luogo: p.luogo || ""});
     b.items = {};
     if (p.attMode === "lista") Object.entries(p.items || {}).forEach(([id, x]) => { if (articolo(id)) b.items[id] = {qta: x.qta}; });
     b.noleggi = (p.noleggi || []).map(n => ({nome: n.desc || "", fornitore: "", qta: "1", paga: n.paga === "cliente" ? "cliente" : "io"}));
@@ -340,7 +340,7 @@ function campo(el){
   } else if (el.dataset.an !== undefined){
     const n = b.noleggi[+el.dataset.an]; if (!n) return;
     n[el.dataset.k] = el.value;
-  } else if (el.dataset.adate !== undefined) b.date[+el.dataset.adate] = el.value;
+  } else if (el.dataset.dt === "a") b.date[+el.dataset.i][el.dataset.k] = el.value;
   else {
     const f = el.getAttribute(A);
     b[f] = el.hasAttribute("data-bool") ? el.checked : el.value;
@@ -478,13 +478,12 @@ export function click(act, el){
       .catch(e => gestisciErrore(e));
     return true;
   }
+  if (act.startsWith("dt-") && el.dataset.dt === "a" && b){ const f = azioneDate(act, el, b.date); salva(); ridisegna(f); return true; }
   if (!act.startsWith("a-") || !b) return false;
   const st = passi(), i = st.indexOf(b.step);
   if (act === "a-goto"){ const id = el.dataset.id; if (b.visited.includes(id) || id === b.step) vaiAlPasso(id); }
   else if (act === "a-prev"){ if (i > 0) vaiAlPasso(st[i - 1]); }
   else if (act === "a-next"){ const m = valida(b.step); if (m) $("#err").textContent = m; else vaiAlPasso(st[i + 1]); }
-  else if (act === "a-dateadd"){ b.date.push(""); salva(); ridisegna(`[data-adate="${b.date.length - 1}"]`); }
-  else if (act === "a-datedel"){ const k = +el.dataset.i; if (b.date.length > 1) b.date.splice(k, 1); else b.date[0] = ""; salva(); ridisegna(); }
   else if (act === "a-noladd"){ b.noleggi.push({nome: "", fornitore: "", qta: "1", paga: "io"}); salva(); ridisegna(`[data-an="${b.noleggi.length - 1}"][data-k="nome"]`); }
   else if (act === "a-noldel"){ b.noleggi.splice(+el.dataset.i, 1); salva(); ridisegna(); }
   else if (act === "a-cifra"){ b.cifra = cifraCampo(+el.dataset.v); b.noRound = false; salva(); ridisegna(`[${A}="cifra"]`); }
@@ -495,7 +494,7 @@ export function click(act, el){
 }
 
 const testuale = el => el.tagName !== "SELECT" && el.type !== "radio" && el.type !== "checkbox";
-const deiCampi = el => el.matches(`[${A}],[data-aitem],[data-adate],[data-an]`);
+const deiCampi = el => el.matches(`[${A}],[data-aitem],[data-dt="a"],[data-an]`);
 export function input(el){
   if (el.matches("[data-afilter]")){ filtroArticoli(el.value); return true; }
   if (el.matches("[data-filter]")){ filtra(el.value); return true; }

@@ -44,3 +44,45 @@ export function avanzamento(titolo){
   document.body.appendChild(el);
   return t => { const p = document.getElementById("avanz"); if (p) p.textContent = t + "…"; };
 }
+
+/* ---------- Date di ripresa: giorni singoli e intervalli ----------
+   pre distingue la procedura (es. "q" per i preventivi); lista è l'elenco normalizzato
+   (vedi normalizzaDate in calcoli.js). */
+export function campoDate(pre, lista, titolo = "Date di ripresa (facoltative)"){
+  const data = (i, k, v, l) => `<input class="inp" type="date" data-dt="${pre}" data-i="${i}" data-k="${k}" value="${esc(v)}" style="max-width:170px" aria-label="${l}">`;
+  return `<div class="f"><span>${titolo}</span>
+    ${lista.map((x, i) => `<div class="fase-row data-row">
+      ${x.intervallo ? `<span class="muted">dal</span>${data(i, "da", x.da, `Inizio intervallo ${i + 1}`)}<span class="muted">al</span>${data(i, "a", x.a, `Fine intervallo ${i + 1}`)}` : data(i, "da", x.da, `Data ${i + 1}`)}
+      <button class="btn small" data-action="dt-togli" data-dt="${pre}" data-i="${i}">Togli</button></div>`).join("")}
+    <div class="actions" style="margin-top:4px"><button class="btn small" data-action="dt-giorno" data-dt="${pre}">Aggiungi giorno</button><button class="btn small" data-action="dt-intervallo" data-dt="${pre}">Aggiungi intervallo</button></div>
+    <div class="cnt" id="dateHint-${pre}"></div></div>`;
+}
+
+/* Tasti del campo date. Restituisce il selettore su cui mettere il fuoco dopo il ridisegno,
+   oppure null se l'azione non riguarda le date. */
+export function azioneDate(act, el, lista){
+  const pre = el.dataset.dt;
+  if (act === "dt-giorno" || act === "dt-intervallo"){
+    const vuota = lista.length === 1 && !lista[0].da && !lista[0].a;
+    const nuova = {da: "", a: "", intervallo: act === "dt-intervallo"};
+    if (vuota) lista[0] = nuova; else lista.push(nuova);
+    return `[data-dt="${pre}"][data-i="${lista.length - 1}"][data-k="da"]`;
+  }
+  if (act === "dt-togli"){
+    lista.splice(+el.dataset.i, 1);
+    if (!lista.length) lista.push({da: "", a: "", intervallo: false});
+    return `[data-action="dt-giorno"][data-dt="${pre}"]`;
+  }
+  return null;
+}
+
+// Controllo degli intervalli: messaggio d'errore o stringa vuota.
+export function erroreDate(lista){
+  for (const x of lista){
+    if (!x.intervallo) continue;
+    if (x.da && !x.a) return "Indica il giorno in cui finisce l’intervallo, oppure toglilo.";
+    if (!x.da && x.a) return "Indica il giorno in cui comincia l’intervallo, oppure toglilo.";
+    if (x.da && x.a && x.a < x.da) return "Un intervallo non può finire prima di cominciare.";
+  }
+  return "";
+}

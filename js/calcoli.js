@@ -59,21 +59,51 @@ export const oggi = () => { const d = new Date(); return `${d.getFullYear()}-${S
 export const dataLunga = iso => { const [a, m, g] = iso.split("-").map(Number); return `${g} ${MESI[m - 1]} ${a}`; };
 export const dataBreve = iso => new Date(iso + "T12:00:00").toLocaleDateString("it-IT", {day: "numeric", month: "short", year: "numeric"});
 
-// ["2026-11-20","2026-11-21"] → "20 e 21 novembre 2026"; mesi o anni diversi restano distinti.
-export function elencoDate(isos){
-  const d = [...new Set(isos.filter(Boolean))].sort().map(x => x.split("-").map(Number));
-  if (!d.length) return "";
-  const gruppi = [];
-  for (const [a, m, g] of d){
-    const ult = gruppi[gruppi.length - 1];
-    if (ult && ult.a === a && ult.m === m) ult.g.push(g); else gruppi.push({a, m, g: [g]});
+/* Elenco di date: giorni singoli {da} o intervalli {da, a, intervallo: true}.
+   Accetta anche il formato vecchio, un elenco di stringhe ISO. */
+export const normalizzaDate = l => (l || []).map(x => typeof x === "string"
+  ? {da: x, a: "", intervallo: false}
+  : {da: x?.da || "", a: x?.a || "", intervallo: !!x?.intervallo});
+
+const isoPiuUno = iso => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); };
+
+// Tutti i giorni dell'elenco, senza doppioni e in ordine: un intervallo dal 20 al 23 conta 4 giorni.
+export function giorniDate(l){
+  const s = new Set();
+  for (const x of normalizzaDate(l)){
+    if (!x.da) continue;
+    if (x.intervallo && x.a && x.a > x.da) for (let g = x.da, n = 0; g <= x.a && n < 400; g = isoPiuUno(g), n++) s.add(g);
+    else s.add(x.da);
   }
-  const unisci = l => l.length > 1 ? l.slice(0, -1).join(", ") + " e " + l[l.length - 1] : l[0];
-  const pezzi = gruppi.map((x, i) => {
-    const stessoAnnoDopo = gruppi[i + 1] && gruppi[i + 1].a === x.a;
-    return `${unisci(x.g.map(String))} ${MESI[x.m - 1]}${stessoAnnoDopo ? "" : " " + x.a}`;
-  });
-  return unisci(pezzi);
+  return [...s].sort();
+}
+
+/* Testo delle date: "20 e 21 novembre 2026", "dal 20 al 23 novembre 2026",
+   "5 novembre e dal 20 al 23 novembre 2026". L'anno si scrive una volta sola quando non cambia. */
+export function elencoDate(l){
+  const norm = normalizzaDate(l).filter(x => x.da).map(x => ({da: x.da, a: x.intervallo && x.a && x.a > x.da ? x.a : ""}));
+  // Un giorno singolo che cade dentro un intervallo non si ripete.
+  const voci = norm.filter(x => x.a || !norm.some(y => y.a && y.da <= x.da && x.da <= y.a))
+    .sort((x, y) => x.da < y.da ? -1 : x.da > y.da ? 1 : 0)
+    .map(x => ({da: x.da.split("-").map(Number), a: x.a ? x.a.split("-").map(Number) : null}));
+  if (!voci.length) return "";
+  const pezzi = [];
+  for (const v of voci){
+    const ult = pezzi[pezzi.length - 1], [a, m, g] = v.da;
+    if (!v.a && ult?.giorni && ult.a === a && ult.m === m){ if (!ult.giorni.includes(g)) ult.giorni.push(g); }
+    else pezzi.push(v.a ? {da: v.da, fine: v.a, annoInizio: a, annoFine: v.a[0]} : {giorni: [g], a, m, annoInizio: a, annoFine: a});
+  }
+  const unisci = x => x.length > 1 ? x.slice(0, -1).join(", ") + " e " + x[x.length - 1] : x[0];
+  // "dall’1", "dall’8", "dall’11"; "all’8"
+  const dal = g => [1, 8, 11].includes(g) ? "dall’" + g : "dal " + g, al = g => [1, 8, 11].includes(g) ? "all’" + g : "al " + g;
+  return unisci(pezzi.map((p, i) => {
+    const anno = pezzi[i + 1] && pezzi[i + 1].annoInizio === p.annoFine ? "" : " " + p.annoFine;
+    if (p.giorni) return `${unisci(p.giorni.map(String))} ${MESI[p.m - 1]}${anno}`;
+    const [a1, m1, g1] = p.da, [a2, m2, g2] = p.fine;
+    if (a1 !== a2) return `${dal(g1)} ${MESI[m1 - 1]} ${a1} ${al(g2)} ${MESI[m2 - 1]} ${a2}`;
+    if (m1 !== m2) return `${dal(g1)} ${MESI[m1 - 1]} ${al(g2)} ${MESI[m2 - 1]}${anno}`;
+    return `${dal(g1)} ${al(g2)} ${MESI[m1 - 1]}${anno}`;
+  }));
 }
 
 /* ---------- Numeri in lettere ---------- */

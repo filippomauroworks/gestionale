@@ -50,7 +50,7 @@ Otto template, uno per ogni documento che il gestionale genera. Il design è que
 | `{{VALIDITA}}` | Giorni di validità |
 | `{{TITOLO}}` | Titolo del progetto |
 | `{{DESCRIZIONE?}}` | Breve descrizione per il cliente |
-| `{{INFO_LAVORO?}}` | `Riprese: 20 e 21 novembre 2026 · Torino` |
+| `{{INFO_LAVORO?}}` | `Riprese: 20 e 21 novembre 2026 · Torino`, oppure con gli intervalli `Riprese: 5 novembre e dal 20 al 23 novembre 2026 · Torino` |
 | `{{FASE.NOME}}` | Pre-produzione, Produzione, Post-produzione (solo le fasi con voci) |
 | `{{VOCE.NOME}}`, `{{VOCE.DESCRIZIONE}}` | Nome e descrizione per il cliente, dal foglio Servizi |
 | `{{VOCE.RIF}}` | Numero della nota a piè di pagina, vuoto se non c'è |
@@ -63,7 +63,35 @@ Otto template, uno per ogni documento che il gestionale genera. Il design è que
 | `{{DICITURA_TOTALE}}` | Solo riepilogativo: `Comprensivo di rivalsa INPS 4% e imposta di bollo.` |
 | `{{TOT_SERVIZI}}`, `{{RIVALSA}}`, `{{BOLLO?}}`, `{{ARROTONDAMENTO?}}` | Solo dettagliato. L'arrotondamento ha il segno: `−7,20 €` |
 
-Kit e noleggi compaiono come voci di Produzione: `Attrezzatura tecnica, Kit Completo`, `Noleggio drone, da Rental X`.
+Kit e noleggi compaiono come voci di Produzione: `Attrezzatura tecnica, Kit Completo`, `Noleggio drone, da Rental X`. La riga dell'attrezzatura ha come `{{VOCE.DESCRIZIONE}}` la nota "Cosa include" scritta nella procedura (es. `1 camera, ottiche fisse, kit luci`).
+
+**Quale si genera.** Il preventivo standard usa il template **dettagliato** (prezzi delle voci) e il file non ha suffisso. Il **riepilogativo** è facoltativo ("Genera anche il preventivo essenziale") e prende il suffisso `_Riepilogo`.
+
+### Pagina "Lista attrezzatura" (solo nel dettagliato)
+
+Compare in fondo quando l'attrezzatura è compilata come lista. Se non c'è una lista, il blocco sparisce tutto, interruzione di pagina compresa.
+
+| Segnaposto | Contenuto |
+|---|---|
+| `{{#LISTA}}` … `{{/LISTA}}` | Blocco della pagina |
+| `{{LISTA_INFO}}` | `Prezzi per giornata, per 2 giornate.` |
+| `{{CAT.NOME}}` | Categoria, nell'ordine del foglio |
+| `{{ART.NOME}}`, `{{ART.QTA}}` | Articolo e quantità |
+| `{{ART.PREZZO}}` | Prezzo lavoro al giorno (o a mezza giornata); `incluso` se è 0 |
+| `{{ART.IMPORTO}}` | Prezzo × quantità × giorni; vuoto se incluso |
+| `{{LISTA_VALORE}}` | Somma degli importi: il valore a pezzi |
+| `{{LISTA_APPLICATO}}`, `{{LISTA_PREZZO}}` | `Nel preventivo: Kit Completo, 2 giornate` e `500,00 €` |
+
+**Come aggiungerla nel Documento Google del dettagliato**, in fondo, dopo la tabella delle note e dei totali:
+
+1. Un paragrafo con `{{#LISTA}}`.
+2. Inserisci → Interruzione → Interruzione di pagina.
+3. Un titolo `Lista attrezzatura`, con lo stile del titolo del progetto, e sotto un paragrafo `{{LISTA_INFO}}`.
+4. Copia la tabella delle voci (VOCE · QUANTITÀ · PREZZO · IMPORTO) e incollala qui. Nell'intestazione scrivi `ARTICOLO · QUANTITÀ · € / GIORNO · IMPORTO`. Nella riga della fase sostituisci `{{FASE.NOME}}` con `{{CAT.NOME}}`. Nella riga della voce metti `{{ART.NOME}}` al posto di nome, numero di nota e descrizione (cancella la seconda riga della cella), poi `{{ART.QTA}}`, `{{ART.PREZZO}}`, `{{ART.IMPORTO}}`.
+5. Sotto la tabella due righe con la tabulazione a destra, come i totali: `Valore del materiale a pezzi` ⇥ `{{LISTA_VALORE}}` e `{{LISTA_APPLICATO}}` ⇥ `{{LISTA_PREZZO}}`.
+6. Un ultimo paragrafo con `{{/LISTA}}`.
+
+Poi in Impostazioni "Prova i template" controlla che non restino segnaposto.
 
 ## ATT — Lista attrezzatura lavoro
 
@@ -96,7 +124,7 @@ Kit e noleggi compaiono come voci di Produzione: `Attrezzatura tecnica, Kit Comp
 |---|---|
 | `{{RIF_PREVENTIVO?}}` | `Rif. preventivo n. 2026-016` |
 | `{{OGGETTO}}` | L'oggetto scritto nella procedura, con la prima lettera minuscola e senza punto finale |
-| `{{FRASE_RIPRESE?}}` | `Le riprese si svolgeranno a Torino il 21 novembre 2026.` |
+| `{{FRASE_RIPRESE?}}` | `Le riprese si svolgeranno a Torino il 21 novembre 2026.`; con più date `… nei giorni 20 e 21 novembre 2026.`; con un intervallo `… dal 20 al 23 novembre 2026.` |
 | `{{FASE.N}}`, `{{FASE.TESTO}}` | `1.` e il testo della fase |
 | `{{FRASE_CONSEGNA?}}` | `A titolo indicativo, la consegna del lavoro è prevista entro dieci (10) giorni lavorativi dalla fine delle riprese.` (oppure `dalla ricezione del materiale richiesto al Cliente`) |
 | `{{FRASE_REVISIONI?}}` | `Sono incluse due (2) revisioni del prodotto finito. Ogni revisione raccoglie in un’unica richiesta tutte le modifiche desiderate.` |

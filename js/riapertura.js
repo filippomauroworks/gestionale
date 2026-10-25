@@ -51,7 +51,7 @@ export function caricaPdf(tipoSezione){
 // Dal nome di un PDF creato dall'app al documento in archivio (anche "file (1).pdf" scaricati due volte).
 export async function daNomeFile(nomeFile, tipoSezione){
   const f = {name: nomeFile.replace(/\s*\(\d+\)(?=\.pdf$)/i, "")};
-  const m = f.name.replace(/\.pdf$/i, "").match(/^(\d{4}-\d{3})_(PRV|CTR|ATT)_.+?(?:_Dettaglio)?(?:_V(\d{2}))?$/);
+  const m = f.name.replace(/\.pdf$/i, "").match(/^(\d{4}-\d{3})_(PRV|CTR|ATT)_.+?(?:_Dettaglio|_Riepilogo)?(?:_V(\d{2}))?$/);
   if (!m) return modal("Codice documento non trovato",
     `<p>Il nome <strong class="fname">${esc(f.name)}</strong> non contiene un codice documento. I file creati dall’app si chiamano, ad esempio, <span class="fname">2026-014_CTR_Progetto_Cliente_FilippoMauro.pdf</span>.</p><p>Puoi anche scegliere il documento dall’elenco e premere “Modifica”.</p>`,
     [{label: "Chiudi", primary: true}]);

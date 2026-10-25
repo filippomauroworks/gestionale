@@ -11,13 +11,13 @@ import { cartellaCliente, generaDocumento } from "./genera.js";
 import { nomeFile, nomeCartellaCliente } from "./nomi.js";
 import { rigaDocumento, linkDoc } from "./elenco.js";
 import { gestisciErrore, CollegamentoMancante } from "./errori.js";
-import { opzione, interruttore, selezione, barraPassi, salvata, avanzamento } from "./procedura.js";
+import { opzione, interruttore, selezione, barraPassi, salvata, avanzamento, campoDate, azioneDate, erroreDate } from "./procedura.js";
 import { registraApritore, avvisoModifica, ultimaVersione } from "./riapertura.js";
-import { numero, centesimi, eur, cifraCampo, qta, oggi, dataLunga, dataBreve, euroInLettere, conLettere } from "./calcoli.js";
+import { numero, centesimi, eur, cifraCampo, qta, oggi, dataLunga, dataBreve, euroInLettere, conLettere, normalizzaDate, giorniDate, elencoDate } from "./calcoli.js";
 
 /* ---------- Bozza ---------- */
 const BKEY = "fm-bozza-contratto-v3";
-const BASE = () => ({step: "cliente", visited: ["cliente"], cli: "", firmatario: "", titolo: "", oggetto: "", fasi: [""], data: "", luogo: "",
+const BASE = () => ({step: "cliente", visited: ["cliente"], cli: "", firmatario: "", titolo: "", oggetto: "", fasi: [""], date: [{da: "", a: "", intervallo: false}], luogo: "",
   consegnaOn: false, consegnaGiorni: "10", consegnaDa: "riprese", modificheOn: false, modificheN: "2",
   grezzo: true, h24: false, materialeOn: false, materialeGiorni: "15",
   totale: "", multi: false, unicaQuando: "consegna", unicaData: "", modo: "perc",
@@ -111,10 +111,12 @@ function fraseForo(){
   return "Per qualsiasi controversia derivante dal presente contratto è competente in via esclusiva il foro di Torino.";
 }
 const foroBreve = () => b.foro === "intermedio" ? "foro di Torino o della sede del Cliente" : b.foro === "prestazione" ? `foro del luogo della prestazione${b.luogo.trim() ? `, ${b.luogo.trim()}` : ""}` : "foro di Torino";
+/* "il 21 novembre 2026", "dal 20 al 23 novembre 2026", "nei giorni 20 e 21 novembre 2026". */
 function fraseRiprese(){
-  const l = b.luogo.trim(), d = b.data ? dataLunga(b.data) : "";
-  if (!l && !d) return "";
-  return `Le riprese si svolgeranno${l ? " a " + l : ""}${d ? " il " + d : ""}.`;
+  const l = b.luogo.trim(), giorni = giorniDate(b.date), testo = elencoDate(b.date);
+  const date = b.date.filter(x => x.da), quando = !testo ? "" : giorni.length === 1 ? " il " + testo : date.length === 1 ? " " + testo : " nei giorni " + testo;
+  if (!l && !quando) return "";
+  return `Le riprese si svolgeranno${l ? " a " + l : ""}${quando}.`;
 }
 function fraseRevisioni(){
   const n = parseInt(b.modificheN, 10) || 0;
@@ -188,7 +190,7 @@ export function daPreventivo(codice){
       const anticipate = voci.filter(([, v]) => v.modo === "cons" && v.fatt === "io").map(([id, v]) => nome(id, v));
       const acc = numero(p.accontoPerc), conAcconto = !!(p.accontoOn && acc > 0 && acc < 100);
       b = Object.assign(BASE(), {
-        cli: d.cliente?.id || "", titolo: d.titolo, oggetto: p.desc || "", data: (p.date || []).filter(Boolean)[0] || "", luogo: p.luogo || "",
+        cli: d.cliente?.id || "", titolo: d.titolo, oggetto: p.desc || "", date: normalizzaDate(p.date).length ? normalizzaDate(p.date) : BASE().date, luogo: p.luogo || "",
         consegnaOn: !!p.consOn, consegnaGiorni: p.consGiorni || "10", modificheOn: !!p.revOn, modificheN: p.revN || "2",
         totale: p.conto?.voluto ? cifraCampo(p.conto.voluto) : "",
         multi: conAcconto, modo: "perc",
@@ -214,6 +216,10 @@ export async function vistaProcedura(view){
     return;
   }
   if (!b.conto && C.conti.length) b.conto = C.conti[0].iban;
+  // I contratti salvati prima avevano una sola data ("data"): diventa il primo giorno dell'elenco.
+  if (b.data && !normalizzaDate(b.date).some(x => x.da)) b.date = [{da: b.data, a: "", intervallo: false}];
+  delete b.data;
+  b.date = normalizzaDate(b.date); if (!b.date.length) b.date = BASE().date;
   const st = passi(), i = st.indexOf(b.step), ultimo = i === st.length - 1;
   view.innerHTML = `<div class="wiz"><div class="wiz-main">
     <a class="wiz-back" href="#contratti">‹ Contratti</a>
@@ -259,8 +265,8 @@ function passoHTML(){
           <button class="btn small" data-action="c-faseup" data-i="${i}" ${i === 0 ? "disabled" : ""} aria-label="Sposta su">Su</button>
           <button class="btn small" data-action="c-fasedel" data-i="${i}" aria-label="Togli fase">Togli</button></div>`).join("")}
         <button class="btn small" data-action="c-faseadd" style="margin-top:4px">Aggiungi fase</button></div>
-      <div class="row2"><label class="f"><span>Data delle riprese (facoltativa)</span><input class="inp" type="date" ${F}="data" value="${esc(b.data)}" style="max-width:200px"></label>
-        <label class="f"><span>Luogo (facoltativo)</span><input class="inp" ${F}="luogo" value="${esc(b.luogo)}" placeholder="Es. Torino"></label></div>
+      ${campoDate("c", b.date, "Date delle riprese (facoltative)")}
+      <label class="f"><span>Luogo (facoltativo)</span><input class="inp" ${F}="luogo" value="${esc(b.luogo)}" placeholder="Es. Torino"></label>
       <div class="frase"><small>Testo nel contratto, Punto 2</small><p id="frasePunto2"></p></div>`;
 
     case "tempi": return `<h2 class="field-q">Tempi e modifiche</h2><p class="hint">Entrambi facoltativi: se li lasci spenti, nel contratto non compaiono.</p>
@@ -352,7 +358,7 @@ function riepilogo(){
     <dt>Cliente</dt><dd>${c ? esc(c.nome) : trattino}</dd>
     ${c?.tipo === "Azienda" ? `<dt>Firmatario</dt><dd>${b.firmatario ? esc(b.firmatario) : trattino}</dd>` : ""}
     <dt>Lavoro</dt><dd>${b.titolo ? esc(b.titolo) : trattino}</dd>
-    <dt>Riprese</dt><dd>${b.data ? dataBreve(b.data) : trattino}${b.luogo ? ", " + esc(b.luogo) : ""}</dd>
+    <dt>Riprese</dt><dd>${elencoDate(b.date) ? esc(elencoDate(b.date)) : trattino}${b.luogo ? ", " + esc(b.luogo) : ""}</dd>
     <dt>Fasi</dt><dd>${b.fasi.filter(f => f.trim()).length || trattino}</dd>
     <dt>Consegna</dt><dd>${b.consegnaOn ? `${esc(b.consegnaGiorni)} gg lav. ${b.consegnaDa === "riprese" ? "dalle riprese" : "dal materiale"}` : "Non indicata"}</dd>
     <dt>Modifiche</dt><dd>${b.modificheOn ? esc(b.modificheN) : "Non indicate"}</dd>
@@ -376,6 +382,7 @@ function valida(id){
     if (!b.titolo.trim()) return "Scrivi il titolo del progetto.";
     if (!b.oggetto.trim()) return "Descrivi l’oggetto del contratto.";
     if (!b.fasi.some(f => f.trim())) return "Scrivi almeno una fase del progetto.";
+    if (erroreDate(b.date)) return erroreDate(b.date);
   }
   if (id === "tempi"){
     if (b.consegnaOn && !(+b.consegnaGiorni > 0)) return "Indica i giorni di consegna, oppure spegni l’opzione.";
@@ -437,6 +444,7 @@ function campo(el){
   if (!b || !C) return;
   let rr = false, fuoco = null;
   if (el.dataset.fase !== undefined) b.fasi[+el.dataset.fase] = el.value;
+  else if (el.dataset.dt === "c") b.date[+el.dataset.i][el.dataset.k] = el.value;
   else if (el.dataset.rata !== undefined){
     b.rate[+el.dataset.rata][el.dataset.k] = el.value;
     if (el.dataset.k === "quando"){ rr = true; fuoco = `[data-rata="${el.dataset.rata}"][data-k="quando"]`; }
@@ -525,6 +533,7 @@ async function genera(){
 export function click(act, el){
   if (act === "ctr-nuovo"){ nuovoContratto(); return true; }
   if (act === "prv-contratto"){ daPreventivo(el.dataset.codice); return true; }
+  if (act.startsWith("dt-") && el.dataset.dt === "c" && b){ const f = azioneDate(act, el, b.date); salva(); ridisegna(f); return true; }
   if (!act.startsWith("c-") || !b) return false;
   const st = passi(), i = st.indexOf(b.step);
   if (act === "c-goto"){ const id = el.dataset.id; if (b.visited.includes(id) || id === b.step) vaiAlPasso(id); }
@@ -548,7 +557,7 @@ export function click(act, el){
 }
 
 const testuale = el => el.tagName !== "SELECT" && el.type !== "radio" && el.type !== "checkbox";
-const deiCampi = el => el.matches(`[${F}],[data-fase],[data-rata]`);
+const deiCampi = el => el.matches(`[${F}],[data-fase],[data-rata],[data-dt="c"]`);
 export function input(el){
   if (deiCampi(el) && testuale(el)){ campo(el); return true; }
   return false;

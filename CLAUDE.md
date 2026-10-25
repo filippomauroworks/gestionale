@@ -82,7 +82,7 @@ In ogni archivio l'app crea una sottocartella per cliente chiamata `CLI-001 – 
 - **Progetto**: titolo in CamelCase senza accenti, tagliato a 32 caratteri.
 - **Cliente**: ragione sociale in CamelCase senza srl, srls, sas, spa, snc (anche con i punti, es. S.r.l.) e senza s.b., società benefit, ssdrl, ssd, asd, aps, sapa, ets, onlus, odv; le parole tutte maiuscole diventano "Parola" (`SALA GIOCHI S.r.l.` → `SalaGiochi`, `GAM Medical srls` → `GamMedical`); `Personale` se manca. Il titolo invece resta com'è scritto (`ADHD` resta `ADHD`).
 - **Stesso codice**: una lista ATT o un contratto creati da un preventivo prendono lo stesso codice del preventivo. Il tipo distingue i documenti. Un contratto nato da zero prende un codice nuovo.
-- **Preventivo dettagliato**: stesso codice e stessa versione, con il suffisso `_Dettaglio` prima della versione.
+- **Preventivo**: il file standard è quello con i prezzi delle voci (template "dettagliato"), senza suffisso. Il **preventivo essenziale** (template "riepilogativo") è facoltativo: stesso codice e stessa versione, con il suffisso `_Riepilogo` prima della versione. I preventivi generati prima di questa scelta possono avere il vecchio `_Dettaglio`.
 - **Copie di cortesia**: `FT-2026-038_CDC_Cliente_FilippoMauro[_Vxx]`, usando il numero di fattura di Fiscozen.
 
 ### Versioni
@@ -142,7 +142,7 @@ Come nel prototipo.
 2. **Progetto**:
    - titolo obbligatorio, con anteprima del nome nel file e indicatore dei 32 caratteri;
    - breve descrizione per il cliente;
-   - date di ripresa, facoltative e anche più di una;
+   - date di ripresa, facoltative: giorni singoli e intervalli ("dal … al …"), anche mescolati; i giorni si contano uno per uno (dal 20 al 23 = 4);
    - luogo, facoltativo;
    - data del preventivo (oggi, modificabile);
    - validità in giorni (30).
@@ -173,7 +173,9 @@ Come nel prototipo.
    - arrotondamento con segno, in su o in giù, e avviso oltre il 15%;
    - compenso per Fiscozen;
    - sezione "Spese a consuntivo": per ogni voce, "Fattura diretta al cliente" oppure "Anticipo io, +26%". Nel secondo caso la stima nel preventivo include la maggiorazione.
-10. **Riepilogo**: anteprima del riepilogativo con note numerate, interruttore "Genera anche il dettagliato", cartella e nomi dei file.
+10. **Riepilogo**: anteprima del preventivo con quantità e importi e note numerate, interruttore "Genera anche il preventivo essenziale", cartella e nomi dei file.
+
+Nel passo Attrezzatura c'è anche "Cosa include, per il cliente" (es. `1 camera, ottiche fisse, kit luci`), che va sotto la voce dell'attrezzatura. Con una lista, il preventivo ha in fondo una pagina "Lista attrezzatura" con i pezzi, i loro costi, il valore a pezzi e il prezzo applicato (vedi la Guida ai template).
 
 Il pannello laterale mostra i totali per fase, attrezzatura, noleggi, totale servizi, rivalsa, bollo, arrotondamento, totale, voci fuori dal totale e compenso Fiscozen.
 
@@ -209,7 +211,7 @@ Il pannello laterale mostra i totali per fase, attrezzatura, noleggi, totale ser
 ### 5.3 Contratto (9 passi)
 
 1. **Cliente**: per le aziende serve il nome del firmatario; per i privati si applica il foro del consumatore.
-2. **Lavoro**: titolo, oggetto, fasi (scritte a mano, ordinabili), data e luogo.
+2. **Lavoro**: titolo, oggetto, fasi (scritte a mano, ordinabili), date (giorni singoli e intervalli, come nel preventivo) e luogo.
 3. **Tempi**: consegna (giorni lavorativi dalle riprese o dal materiale) e modifiche incluse, entrambe facoltative.
 4. **Materiale**: girato grezzo escluso (attivo di default), consegna in 24 ore, materiale dal cliente entro N giorni.
 5. **Compenso**: totale pagato dal cliente, comprensivo di rivalsa e bollo, scritto anche in lettere.
@@ -239,7 +241,7 @@ Il pannello laterale mostra i totali per fase, attrezzatura, noleggi, totale ser
 
 **Dal preventivo**: con "Crea contratto" su un preventivo accettato si apre la stessa procedura, passo per passo e con gli stessi controlli, con i campi precompilati e un avviso in alto. Si precompilano:
 
-- cliente, titolo, descrizione come oggetto, prima data e luogo;
+- cliente, titolo, descrizione come oggetto, date (giorni e intervalli) e luogo;
 - consegna e revisioni;
 - totale al cliente;
 - acconto come pagamento in due soluzioni (acconto alla firma, resto alla consegna);

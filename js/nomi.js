@@ -19,8 +19,9 @@ export const slugCliente = nome => {
   return slug(pulito) || "Personale";
 };
 
-export function nomeFile({codice, tipo, titolo, cliente, versione = 1, dettaglio = false}){
-  return `${codice}_${tipo}_${slug(titolo).slice(0, 32)}_${slugCliente(cliente)}_FilippoMauro${dettaglio ? "_Dettaglio" : ""}${versione > 1 ? "_V" + pad2(versione) : ""}`;
+// riepilogo: il preventivo essenziale facoltativo (suffisso _Riepilogo); dettaglio: il vecchio dettagliato.
+export function nomeFile({codice, tipo, titolo, cliente, versione = 1, dettaglio = false, riepilogo = false}){
+  return `${codice}_${tipo}_${slug(titolo).slice(0, 32)}_${slugCliente(cliente)}_FilippoMauro${dettaglio ? "_Dettaglio" : ""}${riepilogo ? "_Riepilogo" : ""}${versione > 1 ? "_V" + pad2(versione) : ""}`;
 }
 
 // Copia di cortesia: numero di fattura "38/2026" → FT-2026-038_CDC_Cliente_FilippoMauro[_Vxx]

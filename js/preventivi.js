@@ -12,17 +12,17 @@ import { aggiornaJSON } from "./drive.js";
 import { nomeFile, nomeCartellaCliente, slug } from "./nomi.js";
 import { rigaDocumento, filtra, linkDoc } from "./elenco.js";
 import { gestisciErrore, CollegamentoMancante } from "./errori.js";
-import { opzione, interruttore, selezione, barraPassi, avanzamento } from "./procedura.js";
+import { opzione, interruttore, selezione, barraPassi, avanzamento, campoDate, azioneDate, erroreDate } from "./procedura.js";
 import { registraApritore, avvisoModifica, ultimaVersione } from "./riapertura.js";
-import { numero, centesimi, eur, eurSegno, cifraCampo, qta, totali, fiscozen, oggi, dataLunga, dataBreve, elencoDate } from "./calcoli.js";
+import { numero, centesimi, eur, eurSegno, cifraCampo, qta, totali, fiscozen, oggi, dataLunga, dataBreve, elencoDate, normalizzaDate, giorniDate } from "./calcoli.js";
 
 /* ---------- Bozza ---------- */
 const BKEY = "fm-bozza-preventivo-v1";
-const BASE = () => ({step: "cliente", visited: ["cliente"], cli: "", titolo: "", desc: "", date: [""], luogo: "", dataPrev: oggi(), validita: "30",
+const BASE = () => ({step: "cliente", visited: ["cliente"], cli: "", titolo: "", desc: "", date: [{da: "", a: "", intervallo: false}], luogo: "", dataPrev: oggi(), validita: "30",
   voci: {}, nLib: 0,
   attMode: "lista", attUnit: "g", attGiorni: "", attLivello: "", items: {}, override: "auto", listaMode: "kit", tetto: "top", tettoPrezzo: "", genAtt: true,
   noleggi: [], accontoOn: false, accontoPerc: "30", revOn: false, revN: "2", consOn: false, consGiorni: "10", note: "",
-  cifra: "", noRound: true, dettOn: false, edit: null, saved: null});
+  attNota: "", cifra: "", noRound: true, riepOn: false, edit: null, saved: null});
 let b = store.get(BKEY, null);
 if (b) b = Object.assign(BASE(), b);
 const salva = () => { b.saved = new Date().toISOString(); store.set(BKEY, b); };
@@ -48,7 +48,8 @@ const cliente = () => b.cli ? C.clienti.find(c => c.id === b.cli) || null : null
 const articolo = id => L.articoli.find(a => a.id === id);
 const kitUsabili = () => L.kit.filter(k => k.attivo && (b.attUnit === "m" ? k.prezzoMezza : k.prezzo) !== null);
 const magg = () => Number(stato.impostazioni.maggiorazione) || 0;
-const giorniDefault = () => b.date.filter(Boolean).length || 1;
+// Giorni di ripresa: ogni giorno singolo e ogni giorno degli intervalli.
+const giorniDefault = () => giorniDate(b.date).length || 1;
 
 /* ---------- Unità ---------- */
 const UNITA = ["Giornata", "Mezza giornata", "Ora", "Forfait", "Fisso"];
@@ -144,7 +145,7 @@ function vociCliente(){
         PREZZO: v.modo === "tot" && !v.esterna && v.unita !== "Forfait" ? eur(centesimi(v.prezzo) || 0) : "",
         IMPORTO: v.modo === "incl" ? "Inclusa" : v.modo === "cons" ? (st > 0 ? "≈ " + eur(st) : "a consuntivo") : eur(imp)};
     });
-    if (f === "prod" && t.a.on) voci.push({NOME: `Attrezzatura tecnica, ${t.a.cliente}`, DESCRIZIONE: "", RIF: "", DETTAGLIO: giorniTesto(t.a.g),
+    if (f === "prod" && t.a.on) voci.push({NOME: `Attrezzatura tecnica, ${t.a.cliente}`, DESCRIZIONE: b.attNota.trim(), RIF: "", DETTAGLIO: giorniTesto(t.a.g),
       QUANTITA: giorniTesto(t.a.g), PREZZO: eur(t.a.alGiorno), IMPORTO: eur(t.a.totale)});
     if (f === "prod") b.noleggi.forEach(n => voci.push(n.paga === "cliente"
       ? {NOME: `Noleggio ${nomeNoleggio(n)}`, DESCRIZIONE: "", RIF: "", DETTAGLIO: `${eur(centesimi(n.prezzo) || 0)} + IVA, a parte`, QUANTITA: "forfait", PREZZO: "", IMPORTO: "a parte"}
@@ -199,6 +200,7 @@ function extraRiga(d){
   const st = d.stato || "Bozza", u = d.versioni[d.versioni.length - 1];
   return `<select class="inp stato" data-stato="${esc(d.codice)}" aria-label="Stato del preventivo">${STATI.map(s => `<option ${s === st ? "selected" : ""}>${s}</option>`).join("")}</select>
     ${st === "Accettato" ? `<button class="btn small" data-action="prv-contratto" data-codice="${esc(d.codice)}">Crea contratto</button>` : ""}
+    ${u.pdfRiep ? `<a class="btn small" href="${linkDoc(u.docRiep)}" target="_blank" rel="noopener" title="Preventivo essenziale, senza prezzi delle voci">Riepilogo</a>` : ""}
     ${u.pdfDett ? `<a class="btn small" href="${linkDoc(u.docDett)}" target="_blank" rel="noopener" title="Preventivo dettagliato">Dettaglio</a>` : ""}`;
 }
 
@@ -243,6 +245,7 @@ export async function vistaProcedura(view){
     gestisciErrore(e, () => vistaProcedura(view));
     return;
   }
+  b.date = normalizzaDate(b.date); if (!b.date.length) b.date = BASE().date;
   // Voci e articoli che non esistono più nel foglio: via dalla bozza.
   Object.keys(b.voci).forEach(id => { if (!b.voci[id].libera && !servizio(id)) delete b.voci[id]; });
   Object.keys(b.items).forEach(id => { if (!articolo(id)) delete b.items[id]; });
@@ -389,8 +392,9 @@ function consuntivoHTML(){
 
 function anteprima(){
   const t = conto(), {fasi, note} = vociCliente(), esclusi = diciturEsclusi();
-  return `<small class="cnt" style="display:block;margin-bottom:12px">Anteprima del riepilogativo</small>
-    ${fasi.length ? fasi.map(f => `<h4>${f.NOME}</h4><ul>${f.VOCE.map(v => `<li><span>${esc(v.NOME)}${v.RIF ? `<sup>${v.RIF}</sup>` : ""}</span><span>${esc(v.DETTAGLIO)}</span></li>`).join("")}</ul>`).join("") : `<p class="muted">Nessuna voce.</p>`}
+  return `<small class="cnt" style="display:block;margin-bottom:12px">Anteprima del preventivo</small>
+    ${fasi.length ? fasi.map(f => `<h4>${f.NOME}</h4><ul>${f.VOCE.map(v => `<li><span>${esc(v.NOME)}${v.RIF ? `<sup>${v.RIF}</sup>` : ""}${v.DESCRIZIONE ? `<br><small class="muted">${esc(v.DESCRIZIONE)}</small>` : ""}</span><span>${esc([v.QUANTITA, v.IMPORTO].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul>`).join("") : `<p class="muted">Nessuna voce.</p>`}
+    ${paginaLista() ? `<p class="cnt" style="margin-top:10px">In fondo al preventivo: pagina con la lista attrezzatura e i costi dei singoli pezzi.</p>` : ""}
     <div class="ptot">Totale ${eur(t.voluto)}</div>
     <div class="cnt">${esc(diciturTotale(t))}${esclusi ? " " + esc(esclusi) : ""}</div>
     <div class="pnote">${condizioni().map(esc).join("<br>")}</div>
@@ -398,13 +402,13 @@ function anteprima(){
 }
 
 function riepilogo(){
-  const c = cliente(), trattino = `<span class="muted">–</span>`, date = b.date.filter(Boolean), a = attrezzatura();
+  const c = cliente(), trattino = `<span class="muted">–</span>`, date = elencoDate(b.date), a = attrezzatura();
   const cond = [b.accontoOn && `acconto ${esc(b.accontoPerc)}%`, b.revOn && `${esc(b.revN)} revisioni`, b.consOn && `consegna in ${esc(b.consGiorni)} gg lav.`].filter(Boolean);
   const n = Object.values(b.voci).filter(v => v.on).length;
   return `<dl class="sum">
     <dt>Cliente</dt><dd>${c ? esc(c.nome) : trattino}</dd>
     <dt>Progetto</dt><dd>${b.titolo ? esc(b.titolo) : trattino}</dd>
-    <dt>Riprese</dt><dd>${date.length ? date.map(dataBreve).join(", ") : "Da definire"}${b.luogo ? ", " + esc(b.luogo) : ""}</dd>
+    <dt>Riprese</dt><dd>${date ? esc(date) : "Da definire"}${b.luogo ? ", " + esc(b.luogo) : ""}</dd>
     <dt>Preventivo</dt><dd>${b.dataPrev ? dataBreve(b.dataPrev) : trattino}, valido ${esc(b.validita)} giorni</dd>
     <dt>Voci</dt><dd>${n || trattino}</dd>
     <dt>Attrezzatura</dt><dd>${a.on ? `${esc(a.etichetta)} × ${qta(a.g)}` : "Nessuna"}${b.noleggi.length ? `, ${b.noleggi.length} ${b.noleggi.length === 1 ? "noleggio esterno" : "noleggi esterni"}` : ""}</dd>
@@ -443,10 +447,7 @@ function passoHTML(){
     case "progetto": return `<h2 class="field-q">Il progetto</h2><p class="hint">Il titolo va nel nome del file. Date e luogo sono facoltativi.</p>
       <label class="f"><span>Titolo del progetto</span><input class="inp" ${Q}="titolo" value="${esc(b.titolo)}" placeholder="Es. Spot autunno"><div class="cnt" id="titCount"></div></label>
       <label class="f"><span>Breve descrizione per il cliente (facoltativa)</span><textarea class="inp" ${Q}="desc" placeholder="Es. Riprese e montaggio di uno spot di 30 secondi per i social.">${esc(b.desc)}</textarea></label>
-      <div class="f"><span>Date di ripresa (facoltative)</span>
-        ${b.date.map((x, i) => `<div class="fase-row"><input class="inp" type="date" data-qdate="${i}" value="${esc(x)}" style="max-width:200px" aria-label="Data ${i + 1}"><button class="btn small" data-action="q-datedel" data-i="${i}">Togli</button></div>`).join("")}
-        <button class="btn small" data-action="q-dateadd" style="margin-top:4px">Aggiungi data</button>
-        <div class="cnt" id="dateHint"></div></div>
+      ${campoDate("q", b.date)}
       <label class="f"><span>Luogo (facoltativo)</span><input class="inp" ${Q}="luogo" value="${esc(b.luogo)}" placeholder="Es. Torino"></label>
       <div class="row2"><label class="f"><span>Data del preventivo</span><input class="inp" type="date" ${Q}="dataPrev" value="${esc(b.dataPrev)}" style="max-width:200px"></label>
         <label class="f"><span>Validità (giorni)</span><input class="inp num" type="number" min="1" ${Q}="validita" value="${esc(b.validita)}"></label></div>`;
@@ -471,6 +472,7 @@ function passoHTML(){
       ${b.attMode !== "none" ? `<div class="sub">
         <div class="f"><span>Durata</span>${seg("attUnit", [["g", "Giornata intera"], ["m", "Mezza giornata"]])}</div>
         <label class="f"><span>Giorni</span><input class="inp num" type="number" min="1" ${Q}="attGiorni" value="${esc(b.attGiorni !== "" ? b.attGiorni : String(giorniDefault()))}"><div class="cnt">Di default uguali al numero di date di ripresa.</div></label>
+        <label class="f"><span>Cosa include, per il cliente (facoltativo)</span><input class="inp" ${Q}="attNota" value="${esc(b.attNota)}" placeholder="Es. 1 camera, ottiche fisse, kit luci" style="max-width:600px"><div class="cnt">Compare sotto la voce dell’attrezzatura nel preventivo.</div></label>
         ${b.attMode === "livello" ? (kitUsabili().map(k => opzione(Q, "attLivello", k.nome, b.attLivello, "Kit " + esc(k.nome), `${eur(prezzoKit(k))} a ${u}${sogliaKit(k) !== null ? `, materiale fino a ${eur(sogliaKit(k))}` : ""}`)).join("") || `<div class="note warn">Nel foglio Kit non ci sono livelli attivi con un prezzo a ${u}.</div>`)
           : `<div class="note">La lista la compili al passo successivo.</div>`}
       </div>` : ""}
@@ -513,16 +515,16 @@ function passoHTML(){
     case "riep": {
       const codice = b.edit?.codice || codiceProvvisorio(), cartella = stato.impostazioni.file.archivioPreventivi?.name || "Archivio preventivi";
       const esiste = b.edit && trova(codice, "PRV"), v = esiste ? ultimaVersione(esiste) + 1 : 1, att = trova(codice, "ATT"), va = att ? ultimaVersione(att) + 1 : 1;
-      const nome = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, versione: v}), nomeD = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, dettaglio: true, versione: v});
+      const nome = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, versione: v}), nomeR = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, riepilogo: true, versione: v});
       const conAtt = b.attMode === "lista" && b.genAtt;
-      return `<h2 class="field-q">Controlla e genera</h2><p class="hint">Il riepilogativo è quello da inviare; il dettagliato è facoltativo.</p>
+      return `<h2 class="field-q">Controlla e genera</h2><p class="hint">Il preventivo ha i prezzi delle singole voci; quello essenziale, solo con il totale, è facoltativo.</p>
         ${riepilogo()}
         <div class="prev" id="prevBox">${anteprima()}</div>
-        <div style="margin-top:20px">${interruttore(Q, "dettOn", b.dettOn, "Genera anche il preventivo dettagliato", "Con prezzi unitari e il blocco completo dei totali")}</div>
+        <div style="margin-top:20px">${interruttore(Q, "riepOn", b.riepOn, "Genera anche il preventivo essenziale", "Senza i prezzi delle singole voci né la lista attrezzatura: solo il totale")}</div>
         <div class="out">
           <p><strong>Cartella</strong><br>${esc(cartella)} / ${esc(nomeCartellaCliente(c))}</p>
-          <p><strong>Riepilogativo</strong><br><span class="fname">${esc(nome)}</span> <span class="muted">(Google Doc)</span><br><span class="fname">${esc(nome)}.pdf</span></p>
-          ${b.dettOn ? `<p><strong>Dettagliato</strong><br><span class="fname">${esc(nomeD)}</span><br><span class="fname">${esc(nomeD)}.pdf</span></p>` : ""}
+          <p><strong>Preventivo</strong><br><span class="fname">${esc(nome)}</span> <span class="muted">(Google Doc)</span><br><span class="fname">${esc(nome)}.pdf</span></p>
+          ${b.riepOn ? `<p><strong>Essenziale</strong><br><span class="fname">${esc(nomeR)}</span><br><span class="fname">${esc(nomeR)}.pdf</span></p>` : ""}
           ${conAtt ? `<p><strong>Lista attrezzatura</strong> (Archivio liste attrezzatura)<br><span class="fname">${esc(nomeFile({codice, tipo: "ATT", titolo: b.titolo, cliente: c?.nome, versione: va}))}.pdf</span></p>` : ""}
           <p class="muted">${b.edit ? `Nuova versione del preventivo ${esc(codice)}: le precedenti restano in archivio.` : "Il codice definitivo si assegna alla generazione: è il primo libero dell’anno."}</p>
         </div>`;
@@ -543,6 +545,7 @@ function valida(id){
     if (!b.titolo.trim()) return "Scrivi il titolo del progetto.";
     if (!b.dataPrev) return "Indica la data del preventivo.";
     if (!(numero(b.validita) > 0)) return "Indica per quanti giorni vale il preventivo.";
+    if (erroreDate(b.date)) return erroreDate(b.date);
   }
   if (id === "pre" || id === "prod" || id === "post"){
     for (const [vid, v] of Object.entries(b.voci)){
@@ -596,8 +599,8 @@ function dalVivo(){
   document.querySelectorAll("[data-nimp]").forEach(el => { const n = b.noleggi[+el.dataset.nimp]; if (n) el.textContent = importoNoleggioTesto(n); });
   const tc = $("#titCount");
   if (tc){ const s = slug(b.titolo); tc.textContent = s ? `Nel nome del file: ${s.slice(0, 32)}${s.length > 32 ? ` (tagliato, ${s.length} caratteri su 32)` : ` (${s.length}/32)`}` : ""; }
-  const dh = $("#dateHint");
-  if (dh){ const n = b.date.filter(Boolean).length; dh.textContent = n ? `${n} ${n === 1 ? "data" : "date"}: le voci a giornata in Produzione e i giorni di attrezzatura partono da ${n}.` : "Senza date, le voci a giornata partono da 1."; }
+  const dh = $("#dateHint-q");
+  if (dh){ const n = giorniDate(b.date).length; dh.textContent = n ? `${n} ${n === 1 ? "giorno" : "giorni"} di ripresa (${elencoDate(b.date)}): le voci a giornata in Produzione e i giorni di attrezzatura partono da ${n}.` : "Senza date, le voci a giornata partono da 1."; }
   const ls = $("#listaSum"); if (ls) ls.innerHTML = riquadroLista();
   const tb = $("#tettoBox");
   if (tb){ const ol = String(!!attrezzatura().oltre); if (tb.dataset.oltre !== ol || (ol === "true" && !tb.contains(document.activeElement))){ tb.dataset.oltre = ol; tb.innerHTML = riquadroTetto(); } }
@@ -616,7 +619,7 @@ function ridisegna(fuoco){
 }
 const vaiAlPasso = id => { b.step = id; if (!b.visited.includes(id)) b.visited.push(id); salva(); vistaProcedura($("#view")); };
 
-const RIDISEGNA = ["cli", "attMode", "attUnit", "attLivello", "override", "tetto", "listaMode", "accontoOn", "revOn", "consOn", "noRound", "dettOn", "genAtt"];
+const RIDISEGNA = ["cli", "attMode", "attUnit", "attLivello", "override", "tetto", "listaMode", "accontoOn", "revOn", "consOn", "noRound", "riepOn", "genAtt"];
 function campo(el){
   if (!b || !L) return;
   let rr = false, fuoco = null;
@@ -642,7 +645,7 @@ function campo(el){
     const n = b.noleggi[+el.dataset.qn]; if (!n) return;
     n[el.dataset.k] = el.value;
     if (el.dataset.k === "paga"){ rr = true; fuoco = `[data-qn="${el.dataset.qn}"][data-k="paga"][value="${el.value}"]`; }
-  } else if (el.dataset.qdate !== undefined) b.date[+el.dataset.qdate] = el.value;
+  } else if (el.dataset.dt === "q") b.date[+el.dataset.i][el.dataset.k] = el.value;
   else {
     const f = el.getAttribute(Q);
     b[f] = el.hasAttribute("data-bool") ? el.checked : el.value;
@@ -684,7 +687,26 @@ function datiTemplate(codice){
     TITOLO: b.titolo.trim(), DESCRIZIONE: b.desc.trim(), INFO_LAVORO: info,
     FASE: fasi, NOTA: note.map((n, i) => ({RIF: String(i + 1), TESTO: n})), CONDIZIONE: condizioni(),
     DICITURA_ESCLUSI: diciturEsclusi(), TOTALE: eur(t.voluto), DICITURA_TOTALE: diciturTotale(t),
-    TOT_SERVIZI: eur(t.servizi), RIVALSA: eur(t.riv), BOLLO: t.bollo ? eur(t.bollo) : "", ARROTONDAMENTO: t.arr ? eurSegno(t.arr) : ""};
+    TOT_SERVIZI: eur(t.servizi), RIVALSA: eur(t.riv), BOLLO: t.bollo ? eur(t.bollo) : "", ARROTONDAMENTO: t.arr ? eurSegno(t.arr) : "",
+    ...(paginaLista() || {LISTA: false})};
+}
+
+/* Pagina finale del preventivo con la lista attrezzatura e i costi dei pezzi (solo se c'è una lista).
+   Ogni articolo: quantità, prezzo lavoro al giorno (o a mezza giornata), importo per i giorni;
+   sotto, il valore a pezzi e il prezzo applicato nel preventivo (kit, eccedenza o a mano). */
+function paginaLista(){
+  const a = attrezzatura();
+  if (b.attMode !== "lista" || !a.on || !Object.keys(b.items).length) return null;
+  const g = a.g, u = b.attUnit === "m" ? "mezza giornata" : "giornata";
+  const cat = L.categorie.map(c => ({NOME: c, ART: L.articoli.filter(x => x.cat === c && b.items[x.id]).map(x => {
+    const q = numero(b.items[x.id].qta) || 0, p = prezzoPezzo(x);
+    return {NOME: x.nome, QTA: String(q), PREZZO: p > 0 ? eur(p) : "incluso", IMPORTO: p > 0 ? eur(p * q * g) : ""};
+  })})).filter(c => c.ART.length);
+  return {LISTA: true, CAT: cat,
+    LISTA_INFO: `Prezzi per ${u}, per ${giorniTesto(g)}.`,
+    LISTA_VALORE: eur(a.val * g),
+    LISTA_APPLICATO: `Nel preventivo: ${a.pezzi ? "a pezzi" : a.etichetta}, ${giorniTesto(g)}`,
+    LISTA_PREZZO: eur(a.totale)};
 }
 
 // Lista ATT nata dal preventivo: stessa forma dei dati delle liste.
@@ -714,8 +736,8 @@ async function genera(){
   const f = stato.impostazioni.file, conAtt = b.attMode === "lista" && b.genAtt;
   try {
     if (!f.archivioPreventivi) throw new CollegamentoMancante("Archivio preventivi");
-    if (!f.tplPrvRiepilogativo) throw new CollegamentoMancante("Template PRV — Preventivo riepilogativo");
-    if (b.dettOn && !f.tplPrvDettagliato) throw new CollegamentoMancante("Template PRV — Preventivo dettagliato");
+    if (!f.tplPrvDettagliato) throw new CollegamentoMancante("Template PRV — Preventivo dettagliato");
+    if (b.riepOn && !f.tplPrvRiepilogativo) throw new CollegamentoMancante("Template PRV — Preventivo riepilogativo");
     if (conAtt && !f.archivioListe) throw new CollegamentoMancante("Archivio liste attrezzatura");
     if (conAtt && !f.tplAttLavoro) throw new CollegamentoMancante("Template ATT — Lista attrezzatura lavoro");
     const passo = avanzamento("Genero il preventivo");
@@ -725,11 +747,12 @@ async function genera(){
     passo("Preparo la cartella del cliente");
     const cartella = await cartellaCliente(f.archivioPreventivi.id, c);
     const dati = datiTemplate(codice), nome = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, versione: v});
-    const r = await generaDocumento({template: f.tplPrvRiepilogativo.id, cartella: cartella.id, nome, dati}, x => passo("Riepilogativo: " + x.toLowerCase()));
-    let rd = null, nomeD = null;
-    if (b.dettOn){
-      nomeD = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, dettaglio: true, versione: v});
-      rd = await generaDocumento({template: f.tplPrvDettagliato.id, cartella: cartella.id, nome: nomeD, dati}, x => passo("Dettagliato: " + x.toLowerCase()));
+    // Il preventivo standard è quello con i prezzi (template "dettagliato"); l'essenziale è facoltativo.
+    const r = await generaDocumento({template: f.tplPrvDettagliato.id, cartella: cartella.id, nome, dati}, x => passo("Preventivo: " + x.toLowerCase()));
+    let rr = null, nomeR = null;
+    if (b.riepOn){
+      nomeR = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, riepilogo: true, versione: v});
+      rr = await generaDocumento({template: f.tplPrvRiepilogativo.id, cartella: cartella.id, nome: nomeR, dati}, x => passo("Essenziale: " + x.toLowerCase()));
     }
     passo("Aggiorno il registro");
     const bozza = JSON.parse(JSON.stringify(b));
@@ -739,7 +762,7 @@ async function genera(){
     const d = await registra({codice, tipo: "PRV", cliente: c, titolo: b.titolo.trim(), v, nome, doc: r.doc.id, pdf: r.pdf.id, dati: bozza});
     // Stato e dettagliato stanno nel registro, accanto alla versione.
     if (!d.stato) d.stato = "Bozza";
-    if (rd) Object.assign(d.versioni[d.versioni.length - 1], {nomeDett: nomeD, docDett: rd.doc.id, pdfDett: rd.pdf.id});
+    if (rr) Object.assign(d.versioni[d.versioni.length - 1], {nomeRiep: nomeR, docRiep: rr.doc.id, pdfRiep: rr.pdf.id});
     await aggiornaJSON(stato.ids["registro.json"], stato.registro);
     let ra = null, nomeA = null;
     if (conAtt){
@@ -753,11 +776,11 @@ async function genera(){
     }
     b = null; store.del(BKEY);
     location.hash = "preventivi";
-    const rimasti = [...r.rimasti, ...(rd?.rimasti || []), ...(ra?.rimasti || [])];
+    const rimasti = [...r.rimasti, ...(rr?.rimasti || []), ...(ra?.rimasti || [])];
     const tasti = (titolo, x, n) => `<p style="margin:12px 0 4px"><strong>${titolo}</strong></p><div class="actions" style="justify-content:flex-start"><a class="btn small" href="${linkDoc(x.doc.id)}" target="_blank" rel="noopener">Apri il Doc</a><button class="btn small" data-action="scarica-pdf" data-id="${esc(x.pdf.id)}" data-nome="${esc(n)}">Scarica il PDF</button></div>`;
     modal(`Preventivo ${codice}${v > 1 ? ` V${String(v).padStart(2, "0")}` : ""} generato`,
       `${t.fz?.ok ? `<div class="fzbox" style="margin:0 0 8px"><small>Da inserire su Fiscozen</small><strong>Compenso ${eur(t.fz.compenso)}</strong><span>fattura di ${eur(t.voluto)}</span></div>` : ""}
-       ${tasti("Riepilogativo", r, nome)}${rd ? tasti("Dettagliato", rd, nomeD) : ""}${ra ? tasti("Lista attrezzatura", ra, nomeA) : ""}
+       ${tasti("Preventivo", r, nome)}${rr ? tasti("Essenziale", rr, nomeR) : ""}${ra ? tasti("Lista attrezzatura", ra, nomeA) : ""}
        ${rimasti.length ? `<div class="note warn">Nei documenti sono rimasti questi segnaposto: ${esc([...new Set(rimasti)].join(", "))}. Controlla il template.</div>` : ""}`,
       [{label: "Fatto", primary: true}]);
   } catch(e){
@@ -790,6 +813,7 @@ export async function datiPreventivo(codice){
 /* ---------- Eventi ---------- */
 export function click(act, el){
   if (act === "prv-nuovo"){ nuovoPreventivo(); return true; }
+  if (act.startsWith("dt-") && el.dataset.dt === "q" && b){ const f = azioneDate(act, el, b.date); salva(); ridisegna(f); return true; }
   if (!act.startsWith("q-") || !b) return false;
   const st = passi(), i = st.indexOf(b.step);
   if (act === "q-goto"){ const id = el.dataset.id; if (b.visited.includes(id) || id === b.step) vaiAlPasso(id); }
@@ -797,8 +821,6 @@ export function click(act, el){
   else if (act === "q-next"){ const m = valida(b.step); if (m) $("#err").textContent = m; else vaiAlPasso(st[i + 1]); }
   else if (act === "q-libadd"){ const id = "LIB-" + (++b.nLib); b.voci[id] = {on: true, libera: true, fase: el.dataset.fase, nome: "", unita: "Forfait", qta: "1", ris: "1", prezzo: "", importo: "", nota: "", modo: "tot", stima: "", fatt: "cliente", esterna: false, costo: "", cifra: ""}; salva(); ridisegna(`[data-qv="${id}"][data-k="nome"]`); }
   else if (act === "q-libdel"){ delete b.voci[el.dataset.id]; salva(); ridisegna(); }
-  else if (act === "q-dateadd"){ b.date.push(""); salva(); ridisegna(`[data-qdate="${b.date.length - 1}"]`); }
-  else if (act === "q-datedel"){ const k = +el.dataset.i; if (b.date.length > 1) b.date.splice(k, 1); else b.date[0] = ""; salva(); ridisegna(); }
   else if (act === "q-noladd"){ b.noleggi.push({desc: "", prezzo: "", paga: "io", cifra: ""}); salva(); ridisegna(`[data-qn="${b.noleggi.length - 1}"][data-k="desc"]`); }
   else if (act === "q-noldel"){ b.noleggi.splice(+el.dataset.i, 1); salva(); ridisegna(); }
   else if (act === "q-cifra"){ b.cifra = cifraCampo(+el.dataset.v); b.noRound = false; salva(); ridisegna(`[${Q}="cifra"]`); }
@@ -809,7 +831,7 @@ export function click(act, el){
 }
 
 const testuale = el => el.tagName !== "SELECT" && el.type !== "radio" && el.type !== "checkbox";
-const deiCampi = el => el.matches(`[${Q}],[data-qv],[data-qitem],[data-qdate],[data-qn]`);
+const deiCampi = el => el.matches(`[${Q}],[data-qv],[data-qitem],[data-dt="q"],[data-qn]`);
 export function input(el){
   if (el.matches("[data-qfilter]")){ filtroArticoli(el.value); return true; }
   if (deiCampi(el) && testuale(el)){ campo(el); return true; }
