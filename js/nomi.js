@@ -6,7 +6,7 @@ const pad2 = n => String(n).padStart(2, "0");
 const pad3 = n => String(n).padStart(3, "0");
 
 // CamelCase senza accenti né simboli: "Video corso ADHD" → "VideoCorsoADHD".
-export const slug = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9 ]/g, " ")
+export const slug = s => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9 ]/g, " ")
   .split(/\s+/).filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join("");
 
 /* Ragione sociale senza forma societaria; "Personale" se manca il cliente.
