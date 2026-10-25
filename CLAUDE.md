@@ -23,6 +23,9 @@ Questo file è la fonte di verità del progetto. Claude Code lo legge a ogni ses
 - **Configurazione pubblica** in `config.js`: ID client OAuth, chiave API (limitata al Picker e al dominio), numero del progetto Cloud (appId del Picker). Sono valori pubblici per natura.
 - **Il repository è pubblico**: nel codice non vanno mai ID di file Drive, IBAN, prezzi o dati dei clienti. Prezzi e dati stanno nei fogli; gli ID dei file nelle impostazioni (vedi sotto).
 - **Font**: EB Garamond (titoli e cifre) e DM Sans (testo) da Google Fonts.
+- **Repository**: `github.com/filippomauroworks/gestionale`, pubblicato con GitHub Pages da `main`, cartella radice. I `.docx` dei template restano fuori (`.gitignore`): contengono P.IVA, C.F. e indirizzo, e vivono su Drive. Pagina della privacy: `privacy.html`.
+- **File**: `index.html`, `css/app.css`, `config.js`; in `js/`: `app.js` (guscio, viste, Impostazioni), `google.js` (accesso, Picker, `api()`), `drive.js` (Drive v3 di base), `dati.js` (cartella dati, impostazioni, registro), `fogli.js` (schemi e lettura dei fogli), `util.js`.
+- **Prova in locale**: `python3 -m http.server 8000` dalla cartella del progetto. `http://localhost:8000` deve essere tra le origini JavaScript autorizzate del client OAuth e tra i referrer della chiave API.
 
 ### Dove stanno i dati dell'app
 
