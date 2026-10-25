@@ -1,0 +1,6 @@
+# File di sistema macOS (il disco è exFAT)
+._*
+.DS_Store
+
+# Template .docx: contengono P.IVA, C.F. e indirizzo. Vivono su Drive.
+template/*.docx
