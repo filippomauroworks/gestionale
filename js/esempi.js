@@ -15,7 +15,7 @@ const PRV = {
   ...CLIENTE, VALIDITA: "30",
   TITOLO: "Spot autunno",
   DESCRIZIONE: "Riprese e montaggio di uno spot di 30 secondi per la campagna autunnale.",
-  INFO_LAVORO: "Riprese: 20 e 21 novembre 2026 · Torino",
+  INFO_LAVORO: "Riprese: 5 novembre e dal 20 al 23 novembre 2026 · Torino",
   FASE: [
     {NOME: "Pre-produzione", VOCE: [
       {NOME: "Sopralluogo", DESCRIZIONE: "Visita della location e piano di ripresa", RIF: "", DETTAGLIO: "Inclusa", QUANTITA: "1 forfait", PREZZO: "", IMPORTO: "Inclusa"}
@@ -37,7 +37,17 @@ const PRV = {
   DICITURA_ESCLUSI: "Il noleggio del drone è fatturato direttamente da Rental X e non è compreso nel totale.",
   TOT_SERVIZI: "2.540,00 €", RIVALSA: "101,60 €", BOLLO: "2,00 €", ARROTONDAMENTO: "−3,60 €",
   TOTALE: "2.640,00 €",
-  DICITURA_TOTALE: "Comprensivo di rivalsa INPS 4% e imposta di bollo."
+  DICITURA_TOTALE: "Comprensivo di rivalsa INPS 4% e imposta di bollo.",
+  // Pagina "Lista attrezzatura" (solo nel dettagliato)
+  LISTA: true,
+  CAT: [
+    {NOME: "Camere", ART: [{NOME: "Sony FX3", QTA: "1", PREZZO: "80,00 €", IMPORTO: "160,00 €"}]},
+    {NOME: "Alimentazione", ART: [{NOME: "Batteria NP-FZ100", QTA: "4", PREZZO: "incluso", IMPORTO: ""}]}
+  ],
+  LISTA_INFO: "Prezzi per giornata, per 2 giornate.",
+  LISTA_VALORE: "160,00 €",
+  LISTA_APPLICATO: "Nel preventivo: Kit Completo, 2 giornate",
+  LISTA_PREZZO: "500,00 €"
 };
 
 const ARTICOLI = [
@@ -101,7 +111,8 @@ const LISTINO = {
 /* Le prove: k è la chiave del template nelle Impostazioni. */
 export const PROVE = [
   {k: "tplPrvRiepilogativo", nome: "Preventivo riepilogativo", dati: PRV},
-  {k: "tplPrvDettagliato", nome: "Preventivo dettagliato", dati: PRV},
+  {k: "tplPrvDettagliato", nome: "Preventivo dettagliato, con lista attrezzatura", dati: PRV},
+  {k: "tplPrvDettagliato", nome: "Preventivo dettagliato, senza lista", dati: {...PRV, LISTA: false, CAT: []}},
   {k: "tplAttLavoro", nome: "Lista lavoro, con noleggi e note", dati: {
     ...CLIENTE, TITOLO: "Convention di fine anno", INFO_LAVORO: "12 dicembre 2026 · Torino",
     CAT: ARTICOLI, NOLEGGI: true,
