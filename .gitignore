@@ -7,3 +7,6 @@ template/*.docx
 
 # Configurazione locale di Claude Code
 .claude/
+
+# PDF veri di Fiscozen per le prove: contengono dati dei clienti
+esempi-fiscozen/

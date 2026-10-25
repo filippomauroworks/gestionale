@@ -5,6 +5,7 @@ import { gestisciErrore, impostaGanci } from "./errori.js";
 import * as liste from "./liste.js";
 import * as preventivi from "./preventivi.js";
 import * as contratti from "./contratti.js";
+import * as cortesia from "./cortesia.js";
 import { documenti, ultima } from "./registro.js";
 import { rigaDocumento, scaricaPdf } from "./elenco.js";
 import { copia } from "./procedura.js";
@@ -89,20 +90,12 @@ function home(){
       <button class="tile" data-action="lista-nuova"><strong>Lista attrezzatura</strong><span>Per un lavoro o un noleggio</span></button>
       <button class="tile" data-action="prv-nuovo"><strong>Preventivo</strong><span>Servizi, kit attrezzatura, totali</span></button>
       <button class="tile" data-action="ctr-nuovo"><strong>Contratto</strong><span>Procedura guidata completa</span></button>
-      <button class="tile" data-action="presto" data-fase="6"><strong>Copia di cortesia</strong><span>Dal PDF di Fiscozen</span></button>
+      <button class="tile" data-action="cdc-carica"><strong>Copia di cortesia</strong><span>Dal PDF di Fiscozen</span></button>
     </div>
     <h2 class="section-gap">Ultimi documenti</h2>
     <div>${recenti.length ? recenti.map(d => rigaDocumento(d, {conSezione: true})).join("") : `<p class="empty">Ancora nessun documento.</p>`}</div>
   </div>`;
 }
-
-const SEZIONI = {
-  cortesia: {title:"Copie di cortesia", desc:"Dal PDF di Fiscozen, salvate in Archivio copie di cortesia.", fase:6}
-};
-const sezione = k => { const s = SEZIONI[k]; return `<div class="page">
-    <div class="page-head"><div><h1>${s.title}</h1><p>${s.desc}</p></div></div>
-    <p class="empty">Questa sezione arriva con il punto ${s.fase} dell’ordine di sviluppo.</p>
-  </div>`; };
 
 /* ---------- Impostazioni ---------- */
 // Esito dei controlli sui collegamenti, una volta per sessione: k → {stato, testo, problemi}
@@ -240,8 +233,8 @@ async function provaTemplate(){
 }
 
 /* ---------- Router ---------- */
-const TITLES = {home:"Home", attrezzatura:"Attrezzatura", "attrezzatura-nuova":"Attrezzatura", preventivi:"Preventivi", "preventivi-nuovo":"Preventivi", contratti:"Contratti", "contratti-nuovo":"Contratti", cortesia:"Copie di cortesia", impostazioni:"Impostazioni"};
-const PROCEDURE = {"attrezzatura-nuova": "attrezzatura", "preventivi-nuovo": "preventivi", "contratti-nuovo": "contratti"};
+const TITLES = {home:"Home", attrezzatura:"Attrezzatura", "attrezzatura-nuova":"Attrezzatura", preventivi:"Preventivi", "preventivi-nuovo":"Preventivi", contratti:"Contratti", "contratti-nuovo":"Contratti", cortesia:"Copie di cortesia", "cortesia-verifica":"Copie di cortesia", impostazioni:"Impostazioni"};
+const PROCEDURE = {"attrezzatura-nuova": "attrezzatura", "preventivi-nuovo": "preventivi", "contratti-nuovo": "contratti", "cortesia-verifica": "cortesia"};
 function route(){
   if (!stato.impostazioni) return;
   let h = location.hash.slice(1) || "home";
@@ -258,7 +251,8 @@ function route(){
   else if (h === "preventivi-nuovo"){ preventivi.vistaProcedura(v); return; }
   else if (h === "contratti") v.innerHTML = contratti.vistaSezione();
   else if (h === "contratti-nuovo"){ contratti.vistaProcedura(v); return; }
-  else if (SEZIONI[h]) v.innerHTML = sezione(h);
+  else if (h === "cortesia") v.innerHTML = cortesia.vistaSezione();
+  else if (h === "cortesia-verifica"){ const html = cortesia.vistaVerifica(); if (!html) return; v.innerHTML = html; cortesia.aggiorna(); }
   else if (h === "impostazioni"){
     v.innerHTML = impostazioni();
     TUTTI_COLLEGAMENTI.filter(c => stato.impostazioni.file[c.k] && !verifiche[c.k]).forEach(verifica);
@@ -272,13 +266,12 @@ document.addEventListener("click", e => {
   const a = e.target.closest("[data-action]");
   if (!a) return;
   const act = a.dataset.action;
-  if (liste.click(act, a) || preventivi.click(act, a) || contratti.click(act, a)) return;
+  if (liste.click(act, a) || preventivi.click(act, a) || contratti.click(act, a) || cortesia.click(act, a)) return;
   if (act === "scarica-pdf"){ e.preventDefault(); scaricaPdf(a.dataset.id, a.dataset.nome).catch(err => gestisciErrore(err)); }
   else if (act === "copia-testo") copia(a.dataset.testo).then(() => toast("Copiato: in Trello incollalo in una checklist"), () => toast("Copia non riuscita"));
   else if (act === "panel") $("#panel")?.classList.toggle("open");
   else if (act === "picker") apriPicker(a.dataset.k);
   else if (act === "prova-template") provaTemplate();
-  else if (act === "presto") toast(`In arrivo con il punto ${a.dataset.fase} dello sviluppo.`);
   else if (act === "esci") modal("Esci", "<p>Esci da Google su questo dispositivo? I dati restano su Drive.</p>",
     [{label:"Annulla"}, {label:"Esci", primary:true, fn: () => { esci(); stato.impostazioni = null; mostraLogin(); }}]);
   else if (act === "riprova-avvio") avvia();
@@ -286,7 +279,7 @@ document.addEventListener("click", e => {
 
 const erroreSalvataggio = e => gestisciErrore(e, () => salvaImpostazioni().catch(gestisciErrore));
 document.addEventListener("input", e => {
-  if (liste.input(e.target) || preventivi.input(e.target) || contratti.input(e.target)) return;
+  if (liste.input(e.target) || preventivi.input(e.target) || contratti.input(e.target) || cortesia.input(e.target)) return;
   const t = e.target, k = t.dataset.setting;
   if (!k || !stato.impostazioni || k === "tema") return;
   if (k === "maggiorazione"){
@@ -299,7 +292,7 @@ document.addEventListener("input", e => {
   salvaImpostazioniDopo(erroreSalvataggio);
 });
 document.addEventListener("change", e => {
-  if (liste.change(e.target) || preventivi.change(e.target) || contratti.change(e.target)) return;
+  if (liste.change(e.target) || preventivi.change(e.target) || contratti.change(e.target) || cortesia.change(e.target)) return;
   const t = e.target;
   if (t.dataset.setting === "tema" && stato.impostazioni){
     stato.impostazioni.tema = t.value;
