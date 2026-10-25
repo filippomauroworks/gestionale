@@ -12,6 +12,7 @@ import { nomeFile, nomeCartellaCliente } from "./nomi.js";
 import { rigaDocumento, linkDoc } from "./elenco.js";
 import { gestisciErrore, CollegamentoMancante } from "./errori.js";
 import { opzione, interruttore, selezione, barraPassi, salvata, avanzamento } from "./procedura.js";
+import { registraApritore, avvisoModifica, ultimaVersione } from "./riapertura.js";
 import { numero, centesimi, eur, cifraCampo, qta, oggi, dataLunga, dataBreve, euroInLettere, conLettere } from "./calcoli.js";
 
 /* ---------- Bozza ---------- */
@@ -23,7 +24,7 @@ const BASE = () => ({step: "cliente", visited: ["cliente"], cli: "", firmatario:
   rate: [{val: "", quando: "firma", data: ""}, {val: "", quando: "consegna", data: ""}], conto: "",
   speseIncluse: "", speseFornitori: "", speseAnticipate: "",
   licenza: "non", usi: ["web", "social"], usiAltro: "", portfolio: true, citazione: true, musicaOn: false, musicaLibreria: "", musicaPiano: "",
-  foro: "torino", rifPrv: "", saved: null});
+  foro: "torino", rifPrv: "", edit: null, saved: null});
 let b = store.get(BKEY, null);
 if (b) b = Object.assign(BASE(), b);
 const salva = () => { b.saved = new Date().toISOString(); store.set(BKEY, b); };
@@ -140,7 +141,7 @@ export function vistaSezione(){
   const docs = documenti("CTR").slice().sort((x, y) => y.codice.localeCompare(x.codice));
   return `<div class="page">
     <div class="page-head"><div><h1>Contratti</h1><p>Salvati in Archivio contratti, una cartella per cliente.</p></div>
-      <div class="actions"><button class="btn primary" data-action="ctr-nuovo">Nuovo contratto</button></div></div>
+      <div class="actions"><button class="btn" data-action="carica-pdf" data-tipo="CTR">Carica PDF</button><button class="btn primary" data-action="ctr-nuovo">Nuovo contratto</button></div></div>
     <div class="toolbar"><input class="search" type="search" placeholder="Cerca per cliente, lavoro o codice" data-filter aria-label="Cerca"><span class="muted" style="font-size:14px">${docs.length} ${docs.length === 1 ? "contratto" : "contratti"}</span></div>
     <div id="docs">${docs.length ? docs.map(d => rigaDocumento(d)).join("") : `<p class="empty">Nessun contratto. Inizia da “Nuovo contratto”, oppure da “Crea contratto” su un preventivo accettato.</p>`}</div>
   </div>`;
@@ -160,6 +161,17 @@ export function nuovoContratto(){
       [{label: "Ricomincia", fn: () => { b = BASE(); store.del(BKEY); vai(); }}, {label: "Riprendi", primary: true, fn: vai}]);
   } else { b = BASE(); vai(); }
 }
+
+/* Riapre un contratto salvato: tutti i passi sono già visitati. */
+registraApritore("CTR", (d, v, dati) => {
+  const apri = () => {
+    b = Object.assign(BASE(), JSON.parse(JSON.stringify(dati)), {cli: dati.cli ?? d.cliente?.id ?? "", titolo: dati.titolo ?? d.titolo, edit: {codice: d.codice, v, cosa: "del contratto"}, step: "cliente", visited: passi()});
+    delete b.importiRate;
+    salva(); vai();
+  };
+  if (haBozza()) modal("C’è un contratto in sospeso", "<p>Se apri questo contratto per modificarlo, la bozza in sospeso viene sostituita.</p>", [{label: "Annulla"}, {label: "Sostituisci", primary: true, fn: apri}]);
+  else apri();
+});
 
 /* "Crea contratto" su un preventivo accettato: stessa procedura, campi precompilati.
    Le fasi restano vuote. */
@@ -205,14 +217,15 @@ export async function vistaProcedura(view){
   const st = passi(), i = st.indexOf(b.step), ultimo = i === st.length - 1;
   view.innerHTML = `<div class="wiz"><div class="wiz-main">
     <a class="wiz-back" href="#contratti">‹ Contratti</a>
-    <div class="wiz-title"><h1>Nuovo contratto</h1><button class="btn small panel-toggle" data-action="panel">Riepilogo</button></div>
-    ${b.rifPrv ? `<div class="note" style="margin-bottom:18px">Precompilato dal preventivo ${esc(b.rifPrv)}: controlla ogni passo prima di andare avanti. Le fasi del progetto sono da scrivere.</div>` : ""}
+    <div class="wiz-title"><h1>${b.edit ? "Modifica contratto " + esc(b.edit.codice) : "Nuovo contratto"}</h1><button class="btn small panel-toggle" data-action="panel">Riepilogo</button></div>
+    ${avvisoModifica(b.edit)}
+    ${b.rifPrv && !b.edit ? `<div class="note" style="margin-bottom:18px">Precompilato dal preventivo ${esc(b.rifPrv)}: controlla ogni passo prima di andare avanti. Le fasi del progetto sono da scrivere.</div>` : ""}
     <ol class="steps" id="csteps">${barraPassi(st, ETICHETTE, b.step, b.visited, "c-goto")}</ol>
     <section id="stepBody">${passoHTML()}</section>
     <div class="err" id="err" role="alert"></div>
     <div class="wiz-foot">
       <button class="btn" data-action="c-prev" ${i === 0 ? "disabled" : ""}>Indietro</button>
-      ${ultimo ? `<button class="btn primary" data-action="c-genera">Genera contratto</button>` : `<button class="btn primary" data-action="c-next">Avanti</button>`}
+      ${ultimo ? `<button class="btn primary" data-action="c-genera">${b.edit ? "Salva nuova versione" : "Genera contratto"}</button>` : `<button class="btn primary" data-action="c-next">Avanti</button>`}
     </div>
   </div><aside class="panel" id="panel" aria-label="Riepilogo">${pannello()}</aside></div>`;
   dalVivo();
@@ -313,7 +326,7 @@ function passoHTML(){
         <div class="out">
           <p><strong>Cartella</strong><br>${esc(cartella)} / ${esc(nomeCartellaCliente(c))}</p>
           <p><strong>File</strong><br><span class="fname">${esc(nome)}</span> <span class="muted">(Google Doc)</span><br><span class="fname">${esc(nome)}.pdf</span></p>
-          <p class="muted">${b.rifPrv ? `Stesso codice del preventivo ${esc(b.rifPrv)}${v > 1 ? `: il contratto esiste già e diventa la V${String(v).padStart(2, "0")}` : ""}.` : "Il codice definitivo si assegna alla generazione: è il primo libero dell’anno."}</p>
+          <p class="muted">${b.edit ? `Nuova versione del contratto ${esc(codice)}: le precedenti restano in archivio.` : b.rifPrv ? `Stesso codice del preventivo ${esc(b.rifPrv)}${v > 1 ? `: il contratto esiste già e diventa la V${String(v).padStart(2, "0")}` : ""}.` : "Il codice definitivo si assegna alla generazione: è il primo libero dell’anno."}</p>
         </div>`;
     }
   }
@@ -321,9 +334,10 @@ function passoHTML(){
 }
 
 function codiceProvvisorio(){
-  if (b.rifPrv){
-    const d = trova(b.rifPrv, "CTR");
-    return {codice: b.rifPrv, v: d ? Math.max(...d.versioni.map(x => x.v)) + 1 : 1};
+  const fisso = b.edit?.codice || b.rifPrv;
+  if (fisso){
+    const d = trova(fisso, "CTR");
+    return {codice: fisso, v: d ? ultimaVersione(d) + 1 : 1};
   }
   const a = new Date().getFullYear();
   const n = documenti().filter(d => d.codice.startsWith(a + "-")).map(d => parseInt(d.codice.slice(5), 10) || 0);
@@ -482,8 +496,8 @@ async function genera(){
     const passo = avanzamento("Genero il contratto");
     passo("Assegno il codice");
     // Dal preventivo: stesso codice; se il contratto c'è già, diventa la versione successiva.
-    const codice = b.rifPrv || await prossimoCodice();
-    const v = b.rifPrv ? await prossimaVersione(codice, "CTR") : 1;
+    const codice = b.edit?.codice || b.rifPrv || await prossimoCodice();
+    const v = b.edit || b.rifPrv ? await prossimaVersione(codice, "CTR") : 1;
     const c = cliente();
     passo("Preparo la cartella del cliente");
     const cartella = await cartellaCliente(f.archivioContratti.id, c);
@@ -491,7 +505,7 @@ async function genera(){
     const r = await generaDocumento({template: f.tplCtr.id, cartella: cartella.id, nome, dati: datiTemplate(codice)}, passo);
     passo("Aggiorno il registro");
     const dati = JSON.parse(JSON.stringify(b));
-    ["step", "visited", "saved"].forEach(k => delete dati[k]);
+    ["step", "visited", "saved", "edit"].forEach(k => delete dati[k]);
     dati.importiRate = b.multi ? importiRate() : [totaleC()];
     await registra({codice, tipo: "CTR", cliente: c, titolo: b.titolo.trim(), v, nome, doc: r.doc.id, pdf: r.pdf.id, dati});
     b = null; store.del(BKEY);

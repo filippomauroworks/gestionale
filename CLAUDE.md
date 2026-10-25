@@ -98,6 +98,8 @@ In ogni archivio l'app crea una sottocartella per cliente chiamata `CLI-001 – 
 - Se si apre una versione vecchia, avvisa che ne esiste una più recente.
 - Copie di cortesia: "Nuova versione" su una copia in archivio, poi si carica il PDF corretto. Viene letto da zero e salvato come versione successiva. Se il numero letto è diverso, avvisa ma salva comunque come versione della copia scelta. Un PDF con un numero di fattura già in archivio diventa sempre la versione successiva.
 
+**Come funziona** (`js/riapertura.js`): "Modifica" c'è su ogni riga e su ogni versione dell'elenco (liste, preventivi, contratti). Riapre la procedura con i dati salvati di quella versione, compresi titolo e cliente di allora, con tutti i passi già visitati e l'avviso in alto; il tasto finale diventa "Salva nuova versione". Il codice resta, la versione è il numero più alto in archivio + 1. Un preventivo riaperto conserva lo stato; dettagliato e lista ATT generati insieme prendono la loro versione successiva. "Carica PDF" accetta anche i nomi con " (1)" dei file scaricati due volte. Le copie di cortesia non hanno "Modifica": si usa "Nuova versione" e si carica il PDF corretto.
+
 ### Generazione dei documenti
 
 L'app copia il template nella cartella del cliente, sostituisce i segnaposto (motore descritto nella Guida ai template), poi esporta il PDF con Drive (`files.export`) e lo carica nella stessa cartella. Doc e PDF sono identici e si scaricano con due tasti.

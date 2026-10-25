@@ -12,12 +12,13 @@ import { nomeFile, nomeCartellaCliente } from "./nomi.js";
 import { rigaDocumento, filtra, linkDoc, scaricaPdf } from "./elenco.js";
 import { gestisciErrore, CollegamentoMancante } from "./errori.js";
 import { opzione, interruttore, selezione, barraPassi, salvata, copia, avanzamento } from "./procedura.js";
+import { registraApritore, avvisoModifica, ultimaVersione } from "./riapertura.js";
 import { numero, centesimi, eur, eurSegno, cifraCampo, qta, totali, fiscozen, scontoNoleggio, giorniTra, oggi, dataLunga, dataBreve, elencoDate } from "./calcoli.js";
 
 /* ---------- Bozza ---------- */
 const BKEY = "fm-bozza-lista-v1";
 const BASE = () => ({step: "tipo", visited: ["tipo"], kind: "lavoro", fromPrv: "", cli: "", titolo: "", date: [""], luogo: "", note: "",
-  ritiro: "", riconsegna: "", giorni: "", items: {}, noleggi: [], filter: "", noRound: true, cifra: "", saved: null});
+  ritiro: "", riconsegna: "", giorni: "", items: {}, noleggi: [], filter: "", noRound: true, cifra: "", edit: null, saved: null});
 let b = store.get(BKEY, null);
 if (b) b = Object.assign(BASE(), b);
 const salva = () => { b.saved = new Date().toISOString(); store.set(BKEY, b); };
@@ -72,7 +73,7 @@ export function vistaSezione(){
   const dal = stato.impostazioni.listinoDal;
   return `<div class="page">
     <div class="page-head"><div><h1>Attrezzatura</h1><p>Liste per i lavori e i noleggi, inventario completo.</p></div>
-      <div class="actions"><button class="btn primary" data-action="lista-nuova">Nuova lista</button></div></div>
+      <div class="actions"><button class="btn" data-action="carica-pdf" data-tipo="ATT">Carica PDF</button><button class="btn primary" data-action="lista-nuova">Nuova lista</button></div></div>
     <div class="block" style="margin-bottom:28px"><div><h2 style="margin:0">Listini e inventario</h2><div class="muted">${dal ? "Listino valido dal " + dataLunga(dal) : "Data del listino da impostare in Impostazioni"}.</div></div>
       <div class="actions" style="align-items:center">${selezione(`id="dlKind" style="max-width:290px" aria-label="Cosa scaricare"`,
         [["completo", "Listino completo (servizi e noleggio)"], ["noleggio", "Listino noleggio attrezzatura"], ["inventario", "Lista attrezzatura senza prezzi"]], "completo")}
@@ -89,6 +90,17 @@ export function cardBozza(){
   const st = passi(), i = Math.max(0, st.indexOf(b.step));
   return `<div class="draft-card"><div><strong>Lista attrezzatura in sospeso</strong><div class="muted">${b.titolo ? esc(b.titolo) + ", " : ""}passo ${i + 1} di ${st.length}${b.saved ? ", salvata il " + dataBreve(b.saved.slice(0, 10)) : ""}</div></div><a class="btn primary" href="#attrezzatura-nuova">Riprendi</a></div>`;
 }
+
+/* Riapre una lista salvata: tutti i passi sono già visitati. */
+registraApritore("ATT", (d, v, dati) => {
+  const apri = () => {
+    b = Object.assign(BASE(), JSON.parse(JSON.stringify(dati)), {cli: dati.cli ?? d.cliente?.id ?? "", titolo: dati.titolo ?? d.titolo, edit: {codice: d.codice, v, cosa: "della lista"}, step: "tipo", visited: ["tipo", "dati", "articoli", "totale", "riep"]});
+    salva();
+    if (location.hash === "#attrezzatura-nuova") window.dispatchEvent(new HashChangeEvent("hashchange")); else location.hash = "attrezzatura-nuova";
+  };
+  if (haBozza()) modal("C’è una lista in sospeso", "<p>Se apri questa lista per modificarla, la bozza in sospeso viene sostituita.</p>", [{label: "Annulla"}, {label: "Sostituisci", primary: true, fn: apri}]);
+  else apri();
+});
 
 export function nuovaLista(){
   const vai = () => { if (location.hash === "#attrezzatura-nuova") window.dispatchEvent(new HashChangeEvent("hashchange")); else location.hash = "attrezzatura-nuova"; };
@@ -115,13 +127,14 @@ export async function vistaProcedura(view){
   const st = passi(), i = st.indexOf(b.step), ultimo = i === st.length - 1;
   view.innerHTML = `<div class="wiz"><div class="wiz-main">
     <a class="wiz-back" href="#attrezzatura">‹ Attrezzatura</a>
-    <div class="wiz-title"><h1>Nuova lista attrezzatura</h1><button class="btn small panel-toggle" data-action="panel">Riepilogo</button></div>
+    <div class="wiz-title"><h1>${b.edit ? "Modifica lista " + esc(b.edit.codice) : "Nuova lista attrezzatura"}</h1><button class="btn small panel-toggle" data-action="panel">Riepilogo</button></div>
+    ${avvisoModifica(b.edit)}
     <ol class="steps" id="asteps">${barraPassi(st, ETICHETTE, b.step, b.visited, "a-goto")}</ol>
     <section id="stepBody">${passoHTML()}</section>
     <div class="err" id="err" role="alert"></div>
     <div class="wiz-foot">
       <button class="btn" data-action="a-prev" ${i === 0 ? "disabled" : ""}>Indietro</button>
-      ${ultimo ? `<button class="btn primary" data-action="a-genera">Genera lista</button>` : `<button class="btn primary" data-action="a-next">Avanti</button>`}
+      ${ultimo ? `<button class="btn primary" data-action="a-genera">${b.edit ? "Salva nuova versione" : "Genera lista"}</button>` : `<button class="btn primary" data-action="a-next">Avanti</button>`}
     </div>
   </div><aside class="panel" id="panel" aria-label="Riepilogo">${pannello()}</aside></div>`;
   window.scrollTo(0, 0);
@@ -224,8 +237,8 @@ function passoHTML(){
       <div id="aTotBox">${riquadroTotale()}</div>`;
 
     case "riep": {
-      const codice = b.fromPrv || codiceProvvisorio(), esiste = b.fromPrv && trova(b.fromPrv, "ATT");
-      const v = esiste ? Math.max(...esiste.versioni.map(x => x.v)) + 1 : 1;
+      const codice = b.edit?.codice || b.fromPrv || codiceProvvisorio(), esiste = (b.edit || b.fromPrv) && trova(codice, "ATT");
+      const v = esiste ? ultimaVersione(esiste) + 1 : 1;
       const nome = nomeFile({codice, tipo: "ATT", titolo: titolo(), cliente: c?.nome, versione: v});
       const righe = righeTrello();
       return `<h2 class="field-q">Controlla e genera</h2><p class="hint">${nol ? "Il PDF va a chi noleggia." : "Il PDF è per te, con le caselle da spuntare; per Trello usa la copia qui sotto."}</p>
@@ -235,7 +248,7 @@ function passoHTML(){
         <div class="out">
           <p><strong>Cartella</strong><br>${esc(stato.impostazioni.file.archivioListe?.name || "Archivio liste attrezzatura")} / ${esc(nomeCartellaCliente(c))}</p>
           <p><strong>File</strong><br><span class="fname">${esc(nome)}</span> <span class="muted">(Google Doc)</span><br><span class="fname">${esc(nome)}.pdf</span></p>
-          <p class="muted">${b.fromPrv ? `Stesso codice del preventivo ${esc(b.fromPrv)}${esiste ? `: la lista esiste già e diventa la V${String(v).padStart(2, "0")}` : ""}.` : "Il codice definitivo si assegna alla generazione: è il primo libero dell’anno."}</p>
+          <p class="muted">${b.edit ? `Nuova versione della lista ${esc(b.edit.codice)}: le precedenti restano in archivio.` : b.fromPrv ? `Stesso codice del preventivo ${esc(b.fromPrv)}${esiste ? `: la lista esiste già e diventa la V${String(v).padStart(2, "0")}` : ""}.` : "Il codice definitivo si assegna alla generazione: è il primo libero dell’anno."}</p>
         </div>`;
     }
   }
@@ -381,8 +394,8 @@ async function genera(){
     if (!tpl) throw new CollegamentoMancante(nol ? "Template ATT — Noleggio a terzi" : "Template ATT — Lista attrezzatura lavoro");
     const passo = avanzamento("Genero la lista");
     passo("Assegno il codice");
-    const codice = b.fromPrv || await prossimoCodice(), c = cliente();
-    const v = b.fromPrv ? await prossimaVersione(codice, "ATT") : 1;
+    const codice = b.edit?.codice || b.fromPrv || await prossimoCodice(), c = cliente();
+    const v = b.edit || b.fromPrv ? await prossimaVersione(codice, "ATT") : 1;
     passo("Preparo la cartella del cliente");
     const cartella = await cartellaCliente(f.archivioListe.id, c);
     const nome = nomeFile({codice, tipo: "ATT", titolo: titolo(), cliente: c?.nome, versione: v});
@@ -390,7 +403,7 @@ async function genera(){
     passo("Aggiorno il registro");
     const t = nol ? conto() : null;
     const dati = JSON.parse(JSON.stringify(b));
-    ["step", "visited", "filter", "saved"].forEach(k => delete dati[k]);
+    ["step", "visited", "filter", "saved", "edit"].forEach(k => delete dati[k]);
     Object.assign(dati, {titolo: titolo(), trello: righeTrello(), articoli: scelti().map(({a, q}) => ({id: a.id, nome: a.nome, cat: a.cat, q, prezzo: a.noleggio})),
       totali: t && {servizi: t.servizi, riv: t.riv, bollo: t.bollo, totale: t.totale, voluto: t.voluto, compenso: t.fz?.ok ? t.fz.compenso : null}});
     await registra({codice, tipo: "ATT", cliente: c, titolo: titolo(), v, nome, doc: r.doc.id, pdf: r.pdf.id, dati});

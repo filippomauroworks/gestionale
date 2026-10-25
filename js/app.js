@@ -6,7 +6,8 @@ import * as liste from "./liste.js";
 import * as preventivi from "./preventivi.js";
 import * as contratti from "./contratti.js";
 import * as cortesia from "./cortesia.js";
-import { documenti, ultima } from "./registro.js";
+import { documenti, ultima, trova } from "./registro.js";
+import { apriModifica, caricaPdf } from "./riapertura.js";
 import { rigaDocumento, scaricaPdf } from "./elenco.js";
 import { copia } from "./procedura.js";
 import { preparaAccesso, preparaPicker, accedi, esci, haToken, scegli, SessioneScaduta } from "./google.js";
@@ -267,7 +268,9 @@ document.addEventListener("click", e => {
   if (!a) return;
   const act = a.dataset.action;
   if (liste.click(act, a) || preventivi.click(act, a) || contratti.click(act, a) || cortesia.click(act, a)) return;
-  if (act === "scarica-pdf"){ e.preventDefault(); scaricaPdf(a.dataset.id, a.dataset.nome).catch(err => gestisciErrore(err)); }
+  if (act === "modifica"){ e.preventDefault(); const d = trova(a.dataset.codice, a.dataset.tipo); if (d) apriModifica(d, +a.dataset.v); }
+  else if (act === "carica-pdf") caricaPdf(a.dataset.tipo);
+  else if (act === "scarica-pdf"){ e.preventDefault(); scaricaPdf(a.dataset.id, a.dataset.nome).catch(err => gestisciErrore(err)); }
   else if (act === "copia-testo") copia(a.dataset.testo).then(() => toast("Copiato: in Trello incollalo in una checklist"), () => toast("Copia non riuscita"));
   else if (act === "panel") $("#panel")?.classList.toggle("open");
   else if (act === "picker") apriPicker(a.dataset.k);

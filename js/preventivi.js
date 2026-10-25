@@ -13,6 +13,7 @@ import { nomeFile, nomeCartellaCliente, slug } from "./nomi.js";
 import { rigaDocumento, filtra, linkDoc } from "./elenco.js";
 import { gestisciErrore, CollegamentoMancante } from "./errori.js";
 import { opzione, interruttore, selezione, barraPassi, avanzamento } from "./procedura.js";
+import { registraApritore, avvisoModifica, ultimaVersione } from "./riapertura.js";
 import { numero, centesimi, eur, eurSegno, cifraCampo, qta, totali, fiscozen, oggi, dataLunga, dataBreve, elencoDate } from "./calcoli.js";
 
 /* ---------- Bozza ---------- */
@@ -21,7 +22,7 @@ const BASE = () => ({step: "cliente", visited: ["cliente"], cli: "", titolo: "",
   voci: {}, nLib: 0,
   attMode: "lista", attUnit: "g", attGiorni: "", attLivello: "", items: {}, override: "auto", listaMode: "kit", tetto: "top", tettoPrezzo: "", genAtt: true,
   noleggi: [], accontoOn: false, accontoPerc: "30", revOn: false, revN: "2", consOn: false, consGiorni: "10", note: "",
-  cifra: "", noRound: true, dettOn: false, saved: null});
+  cifra: "", noRound: true, dettOn: false, edit: null, saved: null});
 let b = store.get(BKEY, null);
 if (b) b = Object.assign(BASE(), b);
 const salva = () => { b.saved = new Date().toISOString(); store.set(BKEY, b); };
@@ -189,7 +190,7 @@ export function vistaSezione(){
   const docs = documenti("PRV").slice().sort((x, y) => y.codice.localeCompare(x.codice));
   return `<div class="page">
     <div class="page-head"><div><h1>Preventivi</h1><p>Salvati in Archivio preventivi, una cartella per cliente.</p></div>
-      <div class="actions"><button class="btn primary" data-action="prv-nuovo">Nuovo preventivo</button></div></div>
+      <div class="actions"><button class="btn" data-action="carica-pdf" data-tipo="PRV">Carica PDF</button><button class="btn primary" data-action="prv-nuovo">Nuovo preventivo</button></div></div>
     <div class="toolbar"><input class="search" type="search" placeholder="Cerca per cliente, lavoro o codice" data-filter aria-label="Cerca"><span class="muted" style="font-size:14px">${docs.length} ${docs.length === 1 ? "preventivo" : "preventivi"}</span></div>
     <div id="docs">${docs.length ? docs.map(d => rigaDocumento(d, {extra: extraRiga(d)})).join("") : `<p class="empty">Nessun preventivo. Inizia da “Nuovo preventivo”.</p>`}</div>
   </div>`;
@@ -207,6 +208,18 @@ export function cardBozza(){
   const nome = b.cli && C ? C.clienti.find(c => c.id === b.cli)?.nome : "";
   return `<div class="draft-card"><div><strong>Preventivo in sospeso</strong><div class="muted">${b.titolo ? esc(b.titolo) + ", " : nome ? esc(nome) + ", " : ""}passo ${i + 1} di ${st.length}${b.saved ? ", salvato il " + dataBreve(b.saved.slice(0, 10)) : ""}</div></div><a class="btn primary" href="#preventivi-nuovo">Riprendi</a></div>`;
 }
+
+/* Riapre un preventivo salvato: tutti i passi sono già visitati. */
+registraApritore("PRV", (d, v, dati) => {
+  const apri = () => {
+    b = Object.assign(BASE(), JSON.parse(JSON.stringify(dati)), {cli: dati.cli ?? d.cliente?.id ?? "", titolo: dati.titolo ?? d.titolo, edit: {codice: d.codice, v, cosa: "del preventivo"}, step: "cliente", visited: PASSI.map(p => p[0])});
+    delete b.conto; delete b.maggiorazione;
+    salva();
+    if (location.hash === "#preventivi-nuovo") window.dispatchEvent(new HashChangeEvent("hashchange")); else location.hash = "preventivi-nuovo";
+  };
+  if (haBozza()) modal("C’è un preventivo in sospeso", "<p>Se apri questo preventivo per modificarlo, la bozza in sospeso viene sostituita.</p>", [{label: "Annulla"}, {label: "Sostituisci", primary: true, fn: apri}]);
+  else apri();
+});
 
 export function nuovoPreventivo(){
   const vai = () => { if (location.hash === "#preventivi-nuovo") window.dispatchEvent(new HashChangeEvent("hashchange")); else location.hash = "preventivi-nuovo"; };
@@ -238,13 +251,14 @@ export async function vistaProcedura(view){
   const st = passi(), i = st.indexOf(b.step), ultimo = i === st.length - 1;
   view.innerHTML = `<div class="wiz"><div class="wiz-main">
     <a class="wiz-back" href="#preventivi">‹ Preventivi</a>
-    <div class="wiz-title"><h1>Nuovo preventivo</h1><button class="btn small panel-toggle" data-action="panel" id="ptog">Totale</button></div>
+    <div class="wiz-title"><h1>${b.edit ? "Modifica preventivo " + esc(b.edit.codice) : "Nuovo preventivo"}</h1><button class="btn small panel-toggle" data-action="panel" id="ptog">Totale</button></div>
+    ${avvisoModifica(b.edit)}
     <ol class="steps compact" id="qsteps">${barraPassi(st, ETICHETTE, b.step, b.visited, "q-goto")}</ol>
     <section id="stepBody">${passoHTML()}</section>
     <div class="err" id="err" role="alert"></div>
     <div class="wiz-foot">
       <button class="btn" data-action="q-prev" ${i === 0 ? "disabled" : ""}>Indietro</button>
-      ${ultimo ? `<button class="btn primary" data-action="q-genera">Genera preventivo</button>` : `<button class="btn primary" data-action="q-next">Avanti</button>`}
+      ${ultimo ? `<button class="btn primary" data-action="q-genera">${b.edit ? "Salva nuova versione" : "Genera preventivo"}</button>` : `<button class="btn primary" data-action="q-next">Avanti</button>`}
     </div>
   </div><aside class="panel" id="panel" aria-label="Totali">${pannello()}</aside></div>`;
   dalVivo();
@@ -497,8 +511,9 @@ function passoHTML(){
       ${consuntivoHTML()}`;
 
     case "riep": {
-      const codice = codiceProvvisorio(), cartella = stato.impostazioni.file.archivioPreventivi?.name || "Archivio preventivi";
-      const nome = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome}), nomeD = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, dettaglio: true});
+      const codice = b.edit?.codice || codiceProvvisorio(), cartella = stato.impostazioni.file.archivioPreventivi?.name || "Archivio preventivi";
+      const esiste = b.edit && trova(codice, "PRV"), v = esiste ? ultimaVersione(esiste) + 1 : 1, att = trova(codice, "ATT"), va = att ? ultimaVersione(att) + 1 : 1;
+      const nome = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, versione: v}), nomeD = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, dettaglio: true, versione: v});
       const conAtt = b.attMode === "lista" && b.genAtt;
       return `<h2 class="field-q">Controlla e genera</h2><p class="hint">Il riepilogativo è quello da inviare; il dettagliato è facoltativo.</p>
         ${riepilogo()}
@@ -508,8 +523,8 @@ function passoHTML(){
           <p><strong>Cartella</strong><br>${esc(cartella)} / ${esc(nomeCartellaCliente(c))}</p>
           <p><strong>Riepilogativo</strong><br><span class="fname">${esc(nome)}</span> <span class="muted">(Google Doc)</span><br><span class="fname">${esc(nome)}.pdf</span></p>
           ${b.dettOn ? `<p><strong>Dettagliato</strong><br><span class="fname">${esc(nomeD)}</span><br><span class="fname">${esc(nomeD)}.pdf</span></p>` : ""}
-          ${conAtt ? `<p><strong>Lista attrezzatura</strong> (Archivio liste attrezzatura)<br><span class="fname">${esc(nomeFile({codice, tipo: "ATT", titolo: b.titolo, cliente: c?.nome}))}.pdf</span></p>` : ""}
-          <p class="muted">Il codice definitivo si assegna alla generazione: è il primo libero dell’anno.</p>
+          ${conAtt ? `<p><strong>Lista attrezzatura</strong> (Archivio liste attrezzatura)<br><span class="fname">${esc(nomeFile({codice, tipo: "ATT", titolo: b.titolo, cliente: c?.nome, versione: va}))}.pdf</span></p>` : ""}
+          <p class="muted">${b.edit ? `Nuova versione del preventivo ${esc(codice)}: le precedenti restano in archivio.` : "Il codice definitivo si assegna alla generazione: è il primo libero dell’anno."}</p>
         </div>`;
     }
   }
@@ -705,22 +720,23 @@ async function genera(){
     if (conAtt && !f.tplAttLavoro) throw new CollegamentoMancante("Template ATT — Lista attrezzatura lavoro");
     const passo = avanzamento("Genero il preventivo");
     passo("Assegno il codice");
-    const codice = await prossimoCodice(), c = cliente(), t = conto();
+    const codice = b.edit?.codice || await prossimoCodice(), c = cliente(), t = conto();
+    const v = b.edit ? await prossimaVersione(codice, "PRV") : 1;
     passo("Preparo la cartella del cliente");
     const cartella = await cartellaCliente(f.archivioPreventivi.id, c);
-    const dati = datiTemplate(codice), nome = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome});
+    const dati = datiTemplate(codice), nome = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, versione: v});
     const r = await generaDocumento({template: f.tplPrvRiepilogativo.id, cartella: cartella.id, nome, dati}, x => passo("Riepilogativo: " + x.toLowerCase()));
     let rd = null, nomeD = null;
     if (b.dettOn){
-      nomeD = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, dettaglio: true});
+      nomeD = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, dettaglio: true, versione: v});
       rd = await generaDocumento({template: f.tplPrvDettagliato.id, cartella: cartella.id, nome: nomeD, dati}, x => passo("Dettagliato: " + x.toLowerCase()));
     }
     passo("Aggiorno il registro");
     const bozza = JSON.parse(JSON.stringify(b));
-    ["step", "visited", "saved"].forEach(k => delete bozza[k]);
+    ["step", "visited", "saved", "edit"].forEach(k => delete bozza[k]);
     bozza.conto = {servizi: t.servizi, riv: t.riv, bollo: t.bollo, totale: t.totale, voluto: t.voluto, compenso: t.fz?.ok ? t.fz.compenso : null, fasi: t.fasi, attrezzatura: t.a.totale, noleggi: t.nol};
     bozza.maggiorazione = magg();
-    const d = await registra({codice, tipo: "PRV", cliente: c, titolo: b.titolo.trim(), v: 1, nome, doc: r.doc.id, pdf: r.pdf.id, dati: bozza});
+    const d = await registra({codice, tipo: "PRV", cliente: c, titolo: b.titolo.trim(), v, nome, doc: r.doc.id, pdf: r.pdf.id, dati: bozza});
     // Stato e dettagliato stanno nel registro, accanto alla versione.
     if (!d.stato) d.stato = "Bozza";
     if (rd) Object.assign(d.versioni[d.versioni.length - 1], {nomeDett: nomeD, docDett: rd.doc.id, pdfDett: rd.pdf.id});
@@ -739,7 +755,7 @@ async function genera(){
     location.hash = "preventivi";
     const rimasti = [...r.rimasti, ...(rd?.rimasti || []), ...(ra?.rimasti || [])];
     const tasti = (titolo, x, n) => `<p style="margin:12px 0 4px"><strong>${titolo}</strong></p><div class="actions" style="justify-content:flex-start"><a class="btn small" href="${linkDoc(x.doc.id)}" target="_blank" rel="noopener">Apri il Doc</a><button class="btn small" data-action="scarica-pdf" data-id="${esc(x.pdf.id)}" data-nome="${esc(n)}">Scarica il PDF</button></div>`;
-    modal(`Preventivo ${codice} generato`,
+    modal(`Preventivo ${codice}${v > 1 ? ` V${String(v).padStart(2, "0")}` : ""} generato`,
       `${t.fz?.ok ? `<div class="fzbox" style="margin:0 0 8px"><small>Da inserire su Fiscozen</small><strong>Compenso ${eur(t.fz.compenso)}</strong><span>fattura di ${eur(t.voluto)}</span></div>` : ""}
        ${tasti("Riepilogativo", r, nome)}${rd ? tasti("Dettagliato", rd, nomeD) : ""}${ra ? tasti("Lista attrezzatura", ra, nomeA) : ""}
        ${rimasti.length ? `<div class="note warn">Nei documenti sono rimasti questi segnaposto: ${esc([...new Set(rimasti)].join(", "))}. Controlla il template.</div>` : ""}`,
