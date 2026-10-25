@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="15 14 170 170">
+  <!-- Logo FM ricostruito in vettoriale da logo-scuro.png (200 × 200), per icone nitide a ogni misura. -->
+  <g fill="currentColor" transform="translate(0.5 0.5)">
+    <!-- Sinistra: asta verticale e due bande diagonali tagliate a metà -->
+    <rect x="15.5" y="23.5" width="20" height="157"/>
+    <polygon points="15.5,23.5 31.7,15 90.5,60.2 90.5,85.9 15.5,28.2"/>
+    <polygon points="15.5,54.5 90.5,112.2 90.5,137.9 15.5,80.2"/>
+    <!-- Destra: banda diagonale e asta interrotta da tagli obliqui -->
+    <polygon points="167.3,15 183.5,23.5 183.5,27.5 108.5,85.2 108.5,59.6"/>
+    <polygon points="163.5,23.5 183.5,23.5 183.5,53.2 163.5,69.2"/>
+    <polygon points="163.5,85.2 183.5,69.2 183.5,91.6 163.5,107.6"/>
+    <polygon points="163.5,123.6 183.5,107.6 183.5,130 163.5,146"/>
+    <polygon points="163.5,162 183.5,146 183.5,180.5 163.5,180.5"/>
+  </g>
+</svg>

@@ -1,0 +1,17 @@
+{
+  "id": "./",
+  "name": "Gestionale – Filippo Mauro",
+  "short_name": "Gestionale",
+  "description": "Preventivi, contratti, liste attrezzatura e copie di cortesia.",
+  "lang": "it",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FAF6EF",
+  "icons": [
+    {"src": "icone/icona-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icone/icona-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icone/icona-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

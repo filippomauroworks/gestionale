@@ -326,6 +326,8 @@ Ogni sezione si prova su `http://localhost:8000` con i fogli veri, poi si pubbli
 7. **Riapertura e versioni** su tutte le sezioni.
 8. **PWA**: manifest, icone dal logo, service worker per la parte statica.
 
+**PWA (fatto)**: `manifest.webmanifest`, icone in `icone/` generate da `icone/logo.svg` (il logo FM ricostruito in vettoriale dal PNG 200×200; scuro su sabbia `#FAF6EF`, versione maskable con più margine), `icone/favicon.svg` chiaro/scuro, `sw.js` con strategia "prima la rete" (sempre aggiornato online, copia offline; Google e CDN esclusi). **Se si aggiunge un file JS, va aggiunto all'elenco `FILE` in `sw.js`.**
+
 ### Prove prima di dichiarare finita una sezione
 
 - Totali confrontati a mano su almeno 3 casi: con e senza bollo, con arrotondamento in su e in giù, con voci a consuntivo.

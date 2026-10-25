@@ -305,5 +305,8 @@ document.addEventListener("change", e => {
 });
 
 /* ---------- Avvio ---------- */
+// Service worker: rende l'app installabile e tiene una copia della parte statica.
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(e => console.warn("Service worker non registrato:", e));
+
 preparaAccesso().catch(e => { $("#loginErr").textContent = e.message; });
 if (haToken()) avvia(); else mostraLogin();
