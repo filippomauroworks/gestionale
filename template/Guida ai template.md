@@ -65,11 +65,13 @@ Otto template, uno per ogni documento che il gestionale genera. Il design è que
 
 Kit e noleggi compaiono come voci di Produzione: `Attrezzatura tecnica, Kit Completo`, `Noleggio drone, da Rental X`. La riga dell'attrezzatura ha come `{{VOCE.DESCRIZIONE}}` la nota "Cosa include" scritta nella procedura (es. `1 camera, ottiche fisse, kit luci`).
 
-**Quale si genera.** Il preventivo standard usa il template **dettagliato** (prezzi delle voci) e il file non ha suffisso. Il **riepilogativo** è facoltativo ("Genera anche il preventivo essenziale") e prende il suffisso `_Riepilogo`.
+**Quale si genera.** Si usa solo il template **dettagliato**. Il preventivo standard ha i prezzi di ogni servizio e la riga del kit con la nota, senza la pagina della lista; file senza suffisso. Il preventivo **dettagliato** è facoltativo: uguale, con in più la pagina "Lista attrezzatura"; suffisso `_Dettaglio`. Il template **riepilogativo** non si usa più.
+
+`{{TIPO_DOC}}` vale `PREVENTIVO` o `PREVENTIVO DETTAGLIATO`: va messo nell'intestazione al posto della scritta fissa "PREVENTIVO DETTAGLIATO".
 
 ### Pagina "Lista attrezzatura" (solo nel dettagliato)
 
-Compare in fondo quando l'attrezzatura è compilata come lista. Se non c'è una lista, il blocco sparisce tutto, interruzione di pagina compresa.
+Compare in fondo solo nel preventivo dettagliato, che si può generare quando l'attrezzatura è compilata come lista. Nel preventivo standard il blocco sparisce tutto, interruzione di pagina compresa.
 
 | Segnaposto | Contenuto |
 |---|---|

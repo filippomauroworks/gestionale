@@ -12,7 +12,7 @@ const CLIENTE = {
 };
 
 const PRV = {
-  ...CLIENTE, VALIDITA: "30",
+  ...CLIENTE, VALIDITA: "30", TIPO_DOC: "PREVENTIVO",
   TITOLO: "Spot autunno",
   DESCRIZIONE: "Riprese e montaggio di uno spot di 30 secondi per la campagna autunnale.",
   INFO_LAVORO: "Riprese: 5 novembre e dal 20 al 23 novembre 2026 · Torino",
@@ -110,9 +110,8 @@ const LISTINO = {
 
 /* Le prove: k è la chiave del template nelle Impostazioni. */
 export const PROVE = [
-  {k: "tplPrvRiepilogativo", nome: "Preventivo riepilogativo", dati: PRV},
-  {k: "tplPrvDettagliato", nome: "Preventivo dettagliato, con lista attrezzatura", dati: PRV},
-  {k: "tplPrvDettagliato", nome: "Preventivo dettagliato, senza lista", dati: {...PRV, LISTA: false, CAT: []}},
+  {k: "tplPrvDettagliato", nome: "Preventivo", dati: {...PRV, LISTA: false, CAT: []}},
+  {k: "tplPrvDettagliato", nome: "Preventivo dettagliato, con la lista attrezzatura", dati: {...PRV, TIPO_DOC: "PREVENTIVO DETTAGLIATO"}},
   {k: "tplAttLavoro", nome: "Lista lavoro, con noleggi e note", dati: {
     ...CLIENTE, TITOLO: "Convention di fine anno", INFO_LAVORO: "12 dicembre 2026 · Torino",
     CAT: ARTICOLI, NOLEGGI: true,

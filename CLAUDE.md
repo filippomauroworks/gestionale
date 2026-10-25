@@ -82,7 +82,7 @@ In ogni archivio l'app crea una sottocartella per cliente chiamata `CLI-001 – 
 - **Progetto**: titolo in CamelCase senza accenti, tagliato a 32 caratteri.
 - **Cliente**: ragione sociale in CamelCase senza srl, srls, sas, spa, snc (anche con i punti, es. S.r.l.) e senza s.b., società benefit, ssdrl, ssd, asd, aps, sapa, ets, onlus, odv; le parole tutte maiuscole diventano "Parola" (`SALA GIOCHI S.r.l.` → `SalaGiochi`, `GAM Medical srls` → `GamMedical`); `Personale` se manca. Il titolo invece resta com'è scritto (`ADHD` resta `ADHD`).
 - **Stesso codice**: una lista ATT o un contratto creati da un preventivo prendono lo stesso codice del preventivo. Il tipo distingue i documenti. Un contratto nato da zero prende un codice nuovo.
-- **Preventivo**: il file standard è quello con i prezzi delle voci (template "dettagliato"), senza suffisso. Il **preventivo essenziale** (template "riepilogativo") è facoltativo: stesso codice e stessa versione, con il suffisso `_Riepilogo` prima della versione. I preventivi generati prima di questa scelta possono avere il vecchio `_Dettaglio`.
+- **Preventivo**: il file standard ha i prezzi di ogni servizio e, per l'attrezzatura, solo la riga del kit con la nota scritta a mano; nessun suffisso. Il **preventivo dettagliato** è facoltativo: uguale, con in più la pagina finale "Lista attrezzatura"; stesso codice e stessa versione, suffisso `_Dettaglio` prima della versione. Tutti e due usano il template "PRV — Preventivo dettagliato"; il vecchio template riepilogativo (senza prezzi) non si usa più.
 - **Copie di cortesia**: `FT-2026-038_CDC_Cliente_FilippoMauro[_Vxx]`, usando il numero di fattura di Fiscozen.
 
 ### Versioni
@@ -173,9 +173,9 @@ Come nel prototipo.
    - arrotondamento con segno, in su o in giù, e avviso oltre il 15%;
    - compenso per Fiscozen;
    - sezione "Spese a consuntivo": per ogni voce, "Fattura diretta al cliente" oppure "Anticipo io, +26%". Nel secondo caso la stima nel preventivo include la maggiorazione.
-10. **Riepilogo**: anteprima del preventivo con quantità e importi e note numerate, interruttore "Genera anche il preventivo essenziale", cartella e nomi dei file.
+10. **Riepilogo**: anteprima del preventivo con quantità e importi e note numerate, interruttore "Genera anche il preventivo dettagliato" (solo con una lista), cartella e nomi dei file.
 
-Nel passo Attrezzatura c'è anche "Cosa include, per il cliente" (es. `1 camera, ottiche fisse, kit luci`), che va sotto la voce dell'attrezzatura. Con una lista, il preventivo ha in fondo una pagina "Lista attrezzatura" con i pezzi, i loro costi, il valore a pezzi e il prezzo applicato (vedi la Guida ai template).
+Nel passo Attrezzatura c'è anche "Cosa include, per il cliente" (es. `1 camera, ottiche fisse, kit luci`), che va sotto la voce del kit. Il preventivo dettagliato ha in fondo una pagina "Lista attrezzatura" con i pezzi, i loro costi, il valore a pezzi e il prezzo applicato (vedi la Guida ai template).
 
 Il pannello laterale mostra i totali per fase, attrezzatura, noleggi, totale servizi, rivalsa, bollo, arrotondamento, totale, voci fuori dal totale e compenso Fiscozen.
 

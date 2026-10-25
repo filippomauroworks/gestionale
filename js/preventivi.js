@@ -22,7 +22,7 @@ const BASE = () => ({step: "cliente", visited: ["cliente"], cli: "", titolo: "",
   voci: {}, nLib: 0,
   attMode: "lista", attUnit: "g", attGiorni: "", attLivello: "", items: {}, override: "auto", listaMode: "kit", tetto: "top", tettoPrezzo: "", genAtt: true,
   noleggi: [], accontoOn: false, accontoPerc: "30", revOn: false, revN: "2", consOn: false, consGiorni: "10", note: "",
-  attNota: "", cifra: "", noRound: true, riepOn: false, edit: null, saved: null});
+  attNota: "", cifra: "", noRound: true, dettOn: false, edit: null, saved: null});
 let b = store.get(BKEY, null);
 if (b) b = Object.assign(BASE(), b);
 const salva = () => { b.saved = new Date().toISOString(); store.set(BKEY, b); };
@@ -200,8 +200,7 @@ function extraRiga(d){
   const st = d.stato || "Bozza", u = d.versioni[d.versioni.length - 1];
   return `<select class="inp stato" data-stato="${esc(d.codice)}" aria-label="Stato del preventivo">${STATI.map(s => `<option ${s === st ? "selected" : ""}>${s}</option>`).join("")}</select>
     ${st === "Accettato" ? `<button class="btn small" data-action="prv-contratto" data-codice="${esc(d.codice)}">Crea contratto</button>` : ""}
-    ${u.pdfRiep ? `<a class="btn small" href="${linkDoc(u.docRiep)}" target="_blank" rel="noopener" title="Preventivo essenziale, senza prezzi delle voci">Riepilogo</a>` : ""}
-    ${u.pdfDett ? `<a class="btn small" href="${linkDoc(u.docDett)}" target="_blank" rel="noopener" title="Preventivo dettagliato">Dettaglio</a>` : ""}`;
+    ${u.pdfDett ? `<a class="btn small" href="${linkDoc(u.docDett)}" target="_blank" rel="noopener" title="Preventivo dettagliato, con la lista attrezzatura">Dettaglio</a>` : ""}`;
 }
 
 export function cardBozza(){
@@ -394,7 +393,7 @@ function anteprima(){
   const t = conto(), {fasi, note} = vociCliente(), esclusi = diciturEsclusi();
   return `<small class="cnt" style="display:block;margin-bottom:12px">Anteprima del preventivo</small>
     ${fasi.length ? fasi.map(f => `<h4>${f.NOME}</h4><ul>${f.VOCE.map(v => `<li><span>${esc(v.NOME)}${v.RIF ? `<sup>${v.RIF}</sup>` : ""}${v.DESCRIZIONE ? `<br><small class="muted">${esc(v.DESCRIZIONE)}</small>` : ""}</span><span>${esc([v.QUANTITA, v.IMPORTO].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul>`).join("") : `<p class="muted">Nessuna voce.</p>`}
-    ${paginaLista() ? `<p class="cnt" style="margin-top:10px">In fondo al preventivo: pagina con la lista attrezzatura e i costi dei singoli pezzi.</p>` : ""}
+    ${b.dettOn && paginaLista() ? `<p class="cnt" style="margin-top:10px">Nel preventivo dettagliato, in più, una pagina finale con la lista attrezzatura e i costi dei singoli pezzi.</p>` : ""}
     <div class="ptot">Totale ${eur(t.voluto)}</div>
     <div class="cnt">${esc(diciturTotale(t))}${esclusi ? " " + esc(esclusi) : ""}</div>
     <div class="pnote">${condizioni().map(esc).join("<br>")}</div>
@@ -515,16 +514,16 @@ function passoHTML(){
     case "riep": {
       const codice = b.edit?.codice || codiceProvvisorio(), cartella = stato.impostazioni.file.archivioPreventivi?.name || "Archivio preventivi";
       const esiste = b.edit && trova(codice, "PRV"), v = esiste ? ultimaVersione(esiste) + 1 : 1, att = trova(codice, "ATT"), va = att ? ultimaVersione(att) + 1 : 1;
-      const nome = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, versione: v}), nomeR = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, riepilogo: true, versione: v});
+      const nome = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, versione: v}), nomeD = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, dettaglio: true, versione: v});
       const conAtt = b.attMode === "lista" && b.genAtt;
-      return `<h2 class="field-q">Controlla e genera</h2><p class="hint">Il preventivo ha i prezzi delle singole voci; quello essenziale, solo con il totale, è facoltativo.</p>
+      return `<h2 class="field-q">Controlla e genera</h2><p class="hint">Il preventivo ha i prezzi di ogni servizio; per l’attrezzatura, il kit con la tua nota. Quello dettagliato aggiunge la lista dei pezzi con i costi.</p>
         ${riepilogo()}
         <div class="prev" id="prevBox">${anteprima()}</div>
-        <div style="margin-top:20px">${interruttore(Q, "riepOn", b.riepOn, "Genera anche il preventivo essenziale", "Senza i prezzi delle singole voci né la lista attrezzatura: solo il totale")}</div>
+        ${paginaLista() ? `<div style="margin-top:20px">${interruttore(Q, "dettOn", b.dettOn, "Genera anche il preventivo dettagliato", "Uguale, con in più una pagina finale con la lista attrezzatura e i costi dei pezzi")}</div>` : ""}
         <div class="out">
           <p><strong>Cartella</strong><br>${esc(cartella)} / ${esc(nomeCartellaCliente(c))}</p>
           <p><strong>Preventivo</strong><br><span class="fname">${esc(nome)}</span> <span class="muted">(Google Doc)</span><br><span class="fname">${esc(nome)}.pdf</span></p>
-          ${b.riepOn ? `<p><strong>Essenziale</strong><br><span class="fname">${esc(nomeR)}</span><br><span class="fname">${esc(nomeR)}.pdf</span></p>` : ""}
+          ${b.dettOn && paginaLista() ? `<p><strong>Dettagliato</strong><br><span class="fname">${esc(nomeD)}</span><br><span class="fname">${esc(nomeD)}.pdf</span></p>` : ""}
           ${conAtt ? `<p><strong>Lista attrezzatura</strong> (Archivio liste attrezzatura)<br><span class="fname">${esc(nomeFile({codice, tipo: "ATT", titolo: b.titolo, cliente: c?.nome, versione: va}))}.pdf</span></p>` : ""}
           <p class="muted">${b.edit ? `Nuova versione del preventivo ${esc(codice)}: le precedenti restano in archivio.` : "Il codice definitivo si assegna alla generazione: è il primo libero dell’anno."}</p>
         </div>`;
@@ -619,7 +618,7 @@ function ridisegna(fuoco){
 }
 const vaiAlPasso = id => { b.step = id; if (!b.visited.includes(id)) b.visited.push(id); salva(); vistaProcedura($("#view")); };
 
-const RIDISEGNA = ["cli", "attMode", "attUnit", "attLivello", "override", "tetto", "listaMode", "accontoOn", "revOn", "consOn", "noRound", "riepOn", "genAtt"];
+const RIDISEGNA = ["cli", "attMode", "attUnit", "attLivello", "override", "tetto", "listaMode", "accontoOn", "revOn", "consOn", "noRound", "dettOn", "genAtt"];
 function campo(el){
   if (!b || !L) return;
   let rr = false, fuoco = null;
@@ -680,15 +679,16 @@ async function importaLista(){
 }
 
 /* ---------- Generazione ---------- */
-function datiTemplate(codice){
+/* Dati per il template del preventivo. conLista: il dettagliato, con la pagina finale della lista. */
+function datiTemplate(codice, conLista = false){
   const c = cliente(), t = conto(), {fasi, note} = vociCliente();
   const info = [elencoDate(b.date) && "Riprese: " + elencoDate(b.date), b.luogo.trim()].filter(Boolean).join(" · ");
-  return {NUMERO: codice, DATA: dataLunga(b.dataPrev), VALIDITA: String(b.validita), ETICHETTA_4: stato.impostazioni.etichetta4, ...righeCliente(c),
+  return {TIPO_DOC: conLista ? "PREVENTIVO DETTAGLIATO" : "PREVENTIVO", NUMERO: codice, DATA: dataLunga(b.dataPrev), VALIDITA: String(b.validita), ETICHETTA_4: stato.impostazioni.etichetta4, ...righeCliente(c),
     TITOLO: b.titolo.trim(), DESCRIZIONE: b.desc.trim(), INFO_LAVORO: info,
     FASE: fasi, NOTA: note.map((n, i) => ({RIF: String(i + 1), TESTO: n})), CONDIZIONE: condizioni(),
     DICITURA_ESCLUSI: diciturEsclusi(), TOTALE: eur(t.voluto), DICITURA_TOTALE: diciturTotale(t),
     TOT_SERVIZI: eur(t.servizi), RIVALSA: eur(t.riv), BOLLO: t.bollo ? eur(t.bollo) : "", ARROTONDAMENTO: t.arr ? eurSegno(t.arr) : "",
-    ...(paginaLista() || {LISTA: false})};
+    ...(conLista && paginaLista() || {LISTA: false})};
 }
 
 /* Pagina finale del preventivo con la lista attrezzatura e i costi dei pezzi (solo se c'è una lista).
@@ -737,7 +737,6 @@ async function genera(){
   try {
     if (!f.archivioPreventivi) throw new CollegamentoMancante("Archivio preventivi");
     if (!f.tplPrvDettagliato) throw new CollegamentoMancante("Template PRV — Preventivo dettagliato");
-    if (b.riepOn && !f.tplPrvRiepilogativo) throw new CollegamentoMancante("Template PRV — Preventivo riepilogativo");
     if (conAtt && !f.archivioListe) throw new CollegamentoMancante("Archivio liste attrezzatura");
     if (conAtt && !f.tplAttLavoro) throw new CollegamentoMancante("Template ATT — Lista attrezzatura lavoro");
     const passo = avanzamento("Genero il preventivo");
@@ -746,13 +745,14 @@ async function genera(){
     const v = b.edit ? await prossimaVersione(codice, "PRV") : 1;
     passo("Preparo la cartella del cliente");
     const cartella = await cartellaCliente(f.archivioPreventivi.id, c);
-    const dati = datiTemplate(codice), nome = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, versione: v});
-    // Il preventivo standard è quello con i prezzi (template "dettagliato"); l'essenziale è facoltativo.
+    const dati = datiTemplate(codice), conDett = b.dettOn && !!paginaLista(), nome = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, versione: v});
+    // Stesso template per i due: il preventivo (prezzi dei servizi, kit con la nota) e il dettagliato
+    // facoltativo, che ha in più la pagina finale della lista attrezzatura.
     const r = await generaDocumento({template: f.tplPrvDettagliato.id, cartella: cartella.id, nome, dati}, x => passo("Preventivo: " + x.toLowerCase()));
-    let rr = null, nomeR = null;
-    if (b.riepOn){
-      nomeR = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, riepilogo: true, versione: v});
-      rr = await generaDocumento({template: f.tplPrvRiepilogativo.id, cartella: cartella.id, nome: nomeR, dati}, x => passo("Essenziale: " + x.toLowerCase()));
+    let rd = null, nomeD = null;
+    if (conDett){
+      nomeD = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, dettaglio: true, versione: v});
+      rd = await generaDocumento({template: f.tplPrvDettagliato.id, cartella: cartella.id, nome: nomeD, dati: datiTemplate(codice, true)}, x => passo("Dettagliato: " + x.toLowerCase()));
     }
     passo("Aggiorno il registro");
     const bozza = JSON.parse(JSON.stringify(b));
@@ -762,7 +762,7 @@ async function genera(){
     const d = await registra({codice, tipo: "PRV", cliente: c, titolo: b.titolo.trim(), v, nome, doc: r.doc.id, pdf: r.pdf.id, dati: bozza});
     // Stato e dettagliato stanno nel registro, accanto alla versione.
     if (!d.stato) d.stato = "Bozza";
-    if (rr) Object.assign(d.versioni[d.versioni.length - 1], {nomeRiep: nomeR, docRiep: rr.doc.id, pdfRiep: rr.pdf.id});
+    if (rd) Object.assign(d.versioni[d.versioni.length - 1], {nomeDett: nomeD, docDett: rd.doc.id, pdfDett: rd.pdf.id});
     await aggiornaJSON(stato.ids["registro.json"], stato.registro);
     let ra = null, nomeA = null;
     if (conAtt){
@@ -776,11 +776,11 @@ async function genera(){
     }
     b = null; store.del(BKEY);
     location.hash = "preventivi";
-    const rimasti = [...r.rimasti, ...(rr?.rimasti || []), ...(ra?.rimasti || [])];
+    const rimasti = [...r.rimasti, ...(rd?.rimasti || []), ...(ra?.rimasti || [])];
     const tasti = (titolo, x, n) => `<p style="margin:12px 0 4px"><strong>${titolo}</strong></p><div class="actions" style="justify-content:flex-start"><a class="btn small" href="${linkDoc(x.doc.id)}" target="_blank" rel="noopener">Apri il Doc</a><button class="btn small" data-action="scarica-pdf" data-id="${esc(x.pdf.id)}" data-nome="${esc(n)}">Scarica il PDF</button></div>`;
     modal(`Preventivo ${codice}${v > 1 ? ` V${String(v).padStart(2, "0")}` : ""} generato`,
       `${t.fz?.ok ? `<div class="fzbox" style="margin:0 0 8px"><small>Da inserire su Fiscozen</small><strong>Compenso ${eur(t.fz.compenso)}</strong><span>fattura di ${eur(t.voluto)}</span></div>` : ""}
-       ${tasti("Preventivo", r, nome)}${rr ? tasti("Essenziale", rr, nomeR) : ""}${ra ? tasti("Lista attrezzatura", ra, nomeA) : ""}
+       ${tasti("Preventivo", r, nome)}${rd ? tasti("Dettagliato", rd, nomeD) : ""}${ra ? tasti("Lista attrezzatura", ra, nomeA) : ""}
        ${rimasti.length ? `<div class="note warn">Nei documenti sono rimasti questi segnaposto: ${esc([...new Set(rimasti)].join(", "))}. Controlla il template.</div>` : ""}`,
       [{label: "Fatto", primary: true}]);
   } catch(e){
