@@ -2,7 +2,10 @@
 
 import { $, esc, store, toast, modal } from "./util.js";
 import { preparaAccesso, preparaPicker, accedi, esci, haToken, scegli, SessioneScaduta } from "./google.js";
-import { info } from "./drive.js";
+import { info, cerca, cercaPerNome, creaCartella, cestina, MIME_CARTELLA } from "./drive.js";
+import { cartellaCliente, generaDocumento } from "./genera.js";
+import { nomeFile } from "./nomi.js";
+import { PROVE } from "./esempi.js";
 import { leggiFoglio, SCHEMI } from "./fogli.js";
 import { stato, caricaDati, salvaImpostazioni, salvaImpostazioniDopo, COLLEGAMENTI, TUTTI_COLLEGAMENTI, NOME_CARTELLA, collegati } from "./dati.js";
 
@@ -161,6 +164,11 @@ function impostazioni(){
     <label class="f"><span>Maggiorazione su spese esterne, noleggi e spese rifatturate (%)</span><input class="inp num" inputmode="decimal" value="${esc(String(s.maggiorazione).replace(".", ","))}" data-setting="maggiorazione"><span class="err" id="errMagg" style="display:block"></span></label>
     <label class="f"><span>Listino valido dal</span><input class="inp" type="date" value="${esc(s.listinoDal)}" data-setting="listinoDal" style="max-width:200px"></label>
 
+    <h2 class="section-gap">Prova dei template</h2>
+    <p class="muted" style="margin-top:-4px">Genera Doc e PDF di ogni template collegato con dati d’esempio, nella cartella “Prove template” dentro i dati dell’app. Serve a controllare il motore dei segnaposto.</p>
+    <button class="btn" data-action="prova-template">Prova i template</button>
+    <div class="set-list" id="esitoProve" style="margin-top:16px">${esitiProve.map(rigaProva).join("")}</div>
+
     <h2 class="section-gap">Account</h2>
     <div class="block"><div><strong>Dati dell’app</strong><div class="muted">Cartella “${esc(NOME_CARTELLA)}” su Drive.</div></div>
       <div class="actions"><a class="btn" href="https://drive.google.com/drive/folders/${encodeURIComponent(stato.cartella)}" target="_blank" rel="noopener">Apri in Drive</a><button class="btn" data-action="esci">Esci</button></div></div>
@@ -180,6 +188,54 @@ async function apriPicker(k){
     toast(`${c.nome} collegato.`);
     verifica(c);
   } catch(e){ gestisciErrore(e, () => apriPicker(k)); }
+}
+
+/* ---------- Prova dei template ---------- */
+const esitiProve = [];   // {nome, stato: "attesa"|"corso"|"ok"|"avviso"|"errore", testo, doc, pdf}
+
+function rigaProva(e){
+  const st = {attesa:["st-todo","In attesa"], corso:["st-todo","In corso…"], ok:["st-ok","Fatto"], avviso:["st-err","Da controllare"], errore:["st-err","Errore"], salta:["st-todo","Template non collegato"]}[e.stato];
+  const link = (e.doc ? `<a class="btn small" href="https://docs.google.com/document/d/${encodeURIComponent(e.doc)}/edit" target="_blank" rel="noopener">Doc</a>` : "") +
+    (e.pdf ? ` <a class="btn small" href="https://drive.google.com/file/d/${encodeURIComponent(e.pdf)}/view" target="_blank" rel="noopener">PDF</a>` : "");
+  return `<div class="set-row"><div>${esc(e.nome)}${e.testo ? `<span class="${e.stato === "ok" ? "ok-det" : e.stato === "corso" || e.stato === "salta" ? "nome" : "probl"}">${esc(e.testo)}</span>` : ""}</div><span class="${st[0]}">${st[1]}</span><span class="actions">${link}</span></div>`;
+}
+const mostraProve = () => { const el = $("#esitoProve"); if (el) el.innerHTML = esitiProve.map(rigaProva).join(""); };
+
+let proveInCorso = false;
+async function provaTemplate(){
+  if (proveInCorso) return;
+  proveInCorso = true;
+  esitiProve.length = 0;
+  PROVE.forEach(p => esitiProve.push({nome: p.nome, stato: stato.impostazioni.file[p.k] ? "attesa" : "salta"}));
+  mostraProve();
+  try {
+    const radice = (await cercaPerNome("Prove template", {parent: stato.cartella, mime: MIME_CARTELLA}))[0] || await creaCartella("Prove template", stato.cartella);
+    const cartella = await cartellaCliente(radice.id, {id: "CLI-000", nome: "Cliente di prova"});
+    // Le prove precedenti vanno nel cestino, così restano solo quelle nuove.
+    for (const f of await cerca(`'${cartella.id}' in parents`)) await cestina(f.id);
+    for (const [i, p] of PROVE.entries()){
+      const e = esitiProve[i];
+      if (e.stato === "salta") continue;
+      e.stato = "corso"; mostraProve();
+      try {
+        const nome = nomeFile({codice: "PROVA-" + String(i + 1).padStart(2, "0"), tipo: "TPL", titolo: p.nome, cliente: "Cliente di prova"});
+        const r = await generaDocumento({template: stato.impostazioni.file[p.k].id, cartella: cartella.id, nome, dati: p.dati},
+          t => { e.testo = t + "…"; mostraProve(); });
+        Object.assign(e, {doc: r.doc.id, pdf: r.pdf.id});
+        const note = [];
+        if (r.rimasti.length) note.push("Segnaposto rimasti: " + r.rimasti.join(", "));
+        if (!r.link) note.push("Link a filippomauro.com non trovato nel Doc");
+        e.stato = note.length ? "avviso" : "ok";
+        e.testo = note.length ? note.join(" · ") : "Nessun segnaposto rimasto, link presente";
+      } catch(err){
+        if (err instanceof SessioneScaduta) throw err;
+        console.error(p.nome, err);
+        e.stato = "errore"; e.testo = err.message;
+      }
+      mostraProve();
+    }
+  } catch(err){ gestisciErrore(err, provaTemplate); }
+  finally { proveInCorso = false; mostraProve(); }
 }
 
 /* ---------- Router ---------- */
@@ -207,6 +263,7 @@ document.addEventListener("click", e => {
   if (!a) return;
   const act = a.dataset.action;
   if (act === "picker") apriPicker(a.dataset.k);
+  else if (act === "prova-template") provaTemplate();
   else if (act === "presto") toast(`In arrivo con il punto ${a.dataset.fase} dello sviluppo.`);
   else if (act === "esci") modal("Esci", "<p>Esci da Google su questo dispositivo? I dati restano su Drive.</p>",
     [{label:"Annulla"}, {label:"Esci", primary:true, fn: () => { esci(); stato.impostazioni = null; mostraLogin(); }}]);

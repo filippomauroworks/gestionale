@@ -50,6 +50,37 @@ export function creaJSON(nome, parent, dati){
   });
 }
 
+export function copia(id, nome, parent){
+  return api(`${D}/${encodeURIComponent(id)}/copy?fields=id,name,webViewLink`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({name: nome, parents: [parent]})
+  });
+}
+
+// Sposta nel cestino di Drive (recuperabile per 30 giorni).
+export const cestina = id => api(`${D}/${encodeURIComponent(id)}?fields=id`, {
+  method: "PATCH", headers: {"Content-Type": "application/json"}, body: JSON.stringify({trashed: true})
+});
+
+export async function esportaPdf(id){
+  const r = await api(`${D}/${encodeURIComponent(id)}/export?mimeType=application/pdf`, {raw: true});
+  return r.blob();
+}
+
+// Carica un file binario (es. il PDF) con i suoi metadati.
+export function caricaFile(nome, parent, blob, mime){
+  const b = "fm" + Math.random().toString(36).slice(2);
+  const body = new Blob([
+    `--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` + JSON.stringify({name: nome, parents: [parent], mimeType: mime}) +
+    `\r\n--${b}\r\nContent-Type: ${mime}\r\n\r\n`, blob, `\r\n--${b}--`]);
+  return api(`${U}?uploadType=multipart&fields=id,name,webViewLink`, {
+    method: "POST",
+    headers: {"Content-Type": `multipart/related; boundary=${b}`},
+    body
+  });
+}
+
 export function aggiornaJSON(id, dati){
   return api(`${U}/${encodeURIComponent(id)}?uploadType=media&fields=id`, {
     method: "PATCH",

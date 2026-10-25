@@ -266,6 +266,15 @@ Vedi `template/Guida ai template.md`: elenco completo dei segnaposto per documen
 
 Il motore va scritto una volta sola come modulo generico, sopra l'API di Google Docs (lettura della struttura, `insertTableRow`, `deleteContentRange`, `replaceAllText`), e va provato su tutti gli 8 template.
 
+**Come è fatto** (`js/motore.js`): lavora a fasi (blocchi, righe di tabella ripetute, paragrafi ripetuti, facoltativi, sostituzioni semplici) e rilegge il documento tra una fase e l'altra. Regole scoperte provando sui template veri:
+
+- Una riga di tabella si ripete se contiene un solo elenco e nessun segnaposto semplice; altrimenti gli elenchi al suo interno sono paragrafi ripetuti (es. NOTA e CONDIZIONE nella cella delle note).
+- Le righe di gruppo si creano accanto alla riga modello del gruppo; le righe figlie sotto il loro gruppo, poi rese uguali alla riga modello figlia (celle unite, stile delle celle). Il bordo superiore non si riscrive: è condiviso con la riga sopra.
+- Google elenca una cella per colonna anche nelle celle unite (le coperte hanno span 1): la colonna è la posizione nella riga.
+- Lo stile di paragrafo va applicato prima di quello del testo: cambiare lo stile con nome azzera la formattazione del testo.
+- Le tabulazioni non si possono impostare via API: se un template le perde, vanno rimesse a mano in Google Docs.
+- In Impostazioni, "Prova i template" genera 11 prove (8 template e 3 varianti) nella cartella "Prove template" dei dati dell'app e segnala segnaposto rimasti e link mancanti.
+
 **Link**: nei template logo e nome hanno il link a `https://filippomauro.com`. Va verificato che sopravviva nel PDF esportato da Google.
 
 ---
