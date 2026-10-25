@@ -272,7 +272,7 @@ Il motore va scritto una volta sola come modulo generico, sopra l'API di Google 
 - Le righe di gruppo si creano accanto alla riga modello del gruppo; le righe figlie sotto il loro gruppo, poi rese uguali alla riga modello figlia (celle unite, stile delle celle). Il bordo superiore non si riscrive: è condiviso con la riga sopra.
 - Google elenca una cella per colonna anche nelle celle unite (le coperte hanno span 1): la colonna è la posizione nella riga.
 - Lo stile di paragrafo va applicato prima di quello del testo: cambiare lo stile con nome azzera la formattazione del testo.
-- Le tabulazioni non si possono impostare via API: se un template le perde, vanno rimesse a mano in Google Docs.
+- Tabulazioni: i `.docx` avevano il carattere tab scritto come testo (`\t` dentro `<w:t>`) invece di `<w:tab/>`, e la conversione di Google l'ha scartato tenendo però gli arresti di tabulazione. Il 25 ottobre 2026 i 28 tab mancanti sono stati reinseriti via API nei Documenti Google (copia di sicurezza in "Gestionale FM — dati / Backup template"). Se un template si riconverte dal `.docx`, il problema torna. Gli arresti di tabulazione non si impostano via API, ma le righe copiate dal motore li conservano.
 - In Impostazioni, "Prova i template" genera 11 prove (8 template e 3 varianti) nella cartella "Prove template" dei dati dell'app e segnala segnaposto rimasti e link mancanti.
 
 **Link**: nei template logo e nome hanno il link a `https://filippomauro.com`. Va verificato che sopravviva nel PDF esportato da Google.
