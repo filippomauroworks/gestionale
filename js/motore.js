@@ -56,20 +56,14 @@ const fratelli = cont => cont.corpo || cont.cella.content;
    né l'a capo che precede una tabella. In quei casi si toglie l'a capo del paragrafo
    precedente (che poi riprende il suo stile), oppure si svuota soltanto il testo. */
 
-function cancellaParagrafo(p){
-  const lista = fratelli(p.cont), prima = lista[p.i - 1], dopo = lista[p.i + 1];
-  const {startIndex: s, endIndex: e} = p.el;
-  if (dopo && !dopo.table) return [del(s, e)];
-  if (prima?.paragraph) return [del(prima.endIndex - 1, e - 1), ...stilePar(prima.paragraph.paragraphStyle, prima.startIndex, prima.startIndex + 1, !!p.cont.cella, false)];
-  return e - 1 > s ? [del(s, e - 1)] : [];
-}
+function cancellaParagrafo(p){ return cancellaTratto(fratelli(p.cont), p.i, p.i, !!p.cont.cella); }
 
-// Da a (incluso) a b (incluso): due paragrafi dello stesso contenitore.
-function cancellaTratto(lista, a, b){
+// Da a (incluso) a b (incluso): paragrafi consecutivi dello stesso contenitore.
+function cancellaTratto(lista, a, b, inCella = false){
   const prima = lista[a - 1], dopo = lista[b + 1];
   const s = lista[a].startIndex, e = lista[b].endIndex;
   if (dopo && !dopo.table) return [del(s, e)];
-  if (prima?.paragraph) return [del(prima.endIndex - 1, e - 1)];
+  if (prima?.paragraph) return [del(prima.endIndex - 1, e - 1), ...stilePar(prima.paragraph.paragraphStyle, prima.startIndex, prima.startIndex + 1, inCella, false)];
   return e - 1 > s ? [del(s, e - 1)] : [];
 }
 
@@ -298,8 +292,12 @@ async function fasiTabelle(id, dati){
       celleTesta(riga).forEach(({c, cella}) => {
         const mc = m.tableCells[c];
         if (!mc) return;
-        const pars = mc.content.filter(e => e.paragraph);
-        celle.push({cella, paragrafi: pars.map(e => componi(e.paragraph, valore)), stili: pars.map(e => e.paragraph.paragraphStyle)});
+        // Una riga fatta solo di segnaposto che restano vuoti non si scrive
+        // (es. la descrizione di una voce che non ce l'ha), purché resti almeno un paragrafo.
+        let pars = mc.content.filter(e => e.paragraph).map(e => ({e, pezzi: componi(e.paragraph, valore)}));
+        const pieni = pars.filter(x => x.pezzi.some(z => z.testo) || !segnaposti(testoPar(x.e)).length || testoPar(x.e).replace(RE, "").trim());
+        if (pieni.length) pars = pieni; else pars = pars.slice(0, 1);
+        celle.push({cella, paragrafi: pars.map(x => x.pezzi), stili: pars.map(x => x.e.paragraph.paragraphStyle)});
       });
     });
   });
@@ -344,8 +342,8 @@ function fasiParagrafi(doc, dati){
 /* ---------- Fase 4: facoltativi vuoti ---------- */
 
 function fasiFacoltativi(doc, dati){
-  const req = [], righeTolte = new Set();
-  paragrafiCorpo(doc).reverse().forEach(p => {
+  const req = [], righeTolte = new Set(), daTogliere = [];
+  paragrafiCorpo(doc).forEach(p => {
     const ss = segnaposti(testoPar(p.el));
     if (!ss.some(s => s.facolt && !s.campo && vuoto(dati[s.nome]))) return;
     if (p.cont.cella){
@@ -353,12 +351,16 @@ function fasiFacoltativi(doc, dati){
       const piene = p.cont.riga.tableCells.flatMap(c => c.content).filter(e => e.paragraph && testoPar(e).trim());
       if (piene.length === 1 && p.cont.tabella.table.tableRows.length > 1){
         const k = p.cont.tabella.startIndex + ":" + p.cont.ri;
-        if (!righeTolte.has(k)){ righeTolte.add(k); req.push({deleteTableRow: {tableCellLocation: {tableStartLocation: {index: p.cont.tabella.startIndex}, rowIndex: p.cont.ri, columnIndex: 0}}}); }
+        if (!righeTolte.has(k)){ righeTolte.add(k); daTogliere.push({inizio: p.el.startIndex, req: [{deleteTableRow: {tableCellLocation: {tableStartLocation: {index: p.cont.tabella.startIndex}, rowIndex: p.cont.ri, columnIndex: 0}}}]}); }
         return;
       }
     }
-    req.push(...cancellaParagrafo(p));
+    // Paragrafi consecutivi dello stesso contenitore si tolgono insieme.
+    const lista = fratelli(p.cont), ult = daTogliere[daTogliere.length - 1];
+    if (ult?.lista === lista && ult.b === p.i - 1) ult.b = p.i;
+    else daTogliere.push({lista, a: p.i, b: p.i, inCella: !!p.cont.cella, inizio: p.el.startIndex});
   });
+  daTogliere.sort((x, y) => y.inizio - x.inizio).forEach(t => req.push(...(t.req || cancellaTratto(t.lista, t.a, t.b, t.inCella))));
   return req;
 }
 

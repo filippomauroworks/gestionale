@@ -80,7 +80,7 @@ In ogni archivio l'app crea una sottocartella per cliente chiamata `CLI-001 – 
 - **Formato**: `CODICE_TIPO_Progetto_Cliente_FilippoMauro[_Vxx]`, per esempio `2026-016_CTR_VideocorsoADHD_GamMedical_FilippoMauro_V02`.
 - **Tipi**: PRV, CTR, ATT. Numerazione unica per anno e per tutti i tipi.
 - **Progetto**: titolo in CamelCase senza accenti, tagliato a 32 caratteri.
-- **Cliente**: ragione sociale in CamelCase senza srl, srls, sas, spa, snc (anche con i punti, es. S.r.l.) e senza ssdrl, ssd, asd, aps, sapa; le parole tutte maiuscole diventano "Parola" (`SALA GIOCHI S.r.l.` → `SalaGiochi`, `GAM Medical srls` → `GamMedical`); `Personale` se manca. Il titolo invece resta com'è scritto (`ADHD` resta `ADHD`).
+- **Cliente**: ragione sociale in CamelCase senza srl, srls, sas, spa, snc (anche con i punti, es. S.r.l.) e senza ssdrl, ssd, asd, aps, sapa, ets, onlus, odv; le parole tutte maiuscole diventano "Parola" (`SALA GIOCHI S.r.l.` → `SalaGiochi`, `GAM Medical srls` → `GamMedical`); `Personale` se manca. Il titolo invece resta com'è scritto (`ADHD` resta `ADHD`).
 - **Stesso codice**: una lista ATT o un contratto creati da un preventivo prendono lo stesso codice del preventivo. Il tipo distingue i documenti. Un contratto nato da zero prende un codice nuovo.
 - **Preventivo dettagliato**: stesso codice e stessa versione, con il suffisso `_Dettaglio` prima della versione.
 - **Copie di cortesia**: `FT-2026-038_CDC_Cliente_FilippoMauro[_Vxx]`, usando il numero di fattura di Fiscozen.
@@ -222,6 +222,18 @@ Il pannello laterale mostra i totali per fase, attrezzatura, noleggi, totale ser
 7. **Licenza**: non esclusiva o esclusiva, usi consentiti, portfolio, citazione dell'autore, musiche di repertorio con libreria.
 8. **Foro**: Torino, Torino o sede del cliente, luogo della prestazione; per i privati sempre il consumatore.
 9. **Riepilogo.**
+
+**Scelte fatte nello sviluppo (punto 4)**
+
+- Il cliente si sceglie da un menu a tendina, come nelle liste.
+- Le categorie del foglio Servizi diventano le fasi così: "Pre-…" → Pre-produzione, "Post-…" → Post-produzione, il resto → Produzione.
+- Livello del kit e livello a mano si identificano con il nome del kit (colonna Nome del foglio Kit). I kit senza prezzo per l'unità scelta (giornata o mezza) non si propongono.
+- Nel preventivo, in Produzione: prima le voci, poi l'attrezzatura (kit), poi i noleggi esterni.
+- Il prezzo di una voce può essere 0 (es. Fisso a 0); l'importo di un Forfait no.
+- La lista ATT nata dal preventivo usa il template della lista lavoro e lo stesso codice; i noleggi esterni del preventivo diventano righe di noleggio con chi paga.
+- Stato del preventivo e file del dettagliato stanno nel registro (`stato`, e `docDett`/`pdfDett`/`nomeDett` nella versione).
+- Se la generazione si interrompe a metà, la copia del template già creata va nel cestino.
+- Motore: nelle righe ripetute, un paragrafo fatto solo di segnaposto che restano vuoti non si scrive (es. la descrizione mancante); paragrafi facoltativi vuoti consecutivi si tolgono insieme.
 
 **Dal preventivo**: con "Crea contratto" su un preventivo accettato si apre la stessa procedura, passo per passo e con gli stessi controlli, con i campi precompilati e un avviso in alto. Si precompilano:
 

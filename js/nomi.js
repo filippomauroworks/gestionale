@@ -11,7 +11,7 @@ export const slug = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, ""
 
 /* Ragione sociale senza forma societaria; "Personale" se manca il cliente.
    Le parole tutte maiuscole diventano "Parola": "SALA GIOCHI S.r.l." → "SalaGiochi". */
-const FORME = /(^|\s)(s\.?\s?r\.?\s?l\.?(\s?s\.?)?|s\.?\s?a\.?\s?s\.?|s\.?\s?p\.?\s?a\.?|s\.?\s?n\.?\s?c\.?|s\.?\s?a\.?\s?p\.?\s?a\.?|ssdrl|ssd|asd|aps)(?=\s|,|$)/ig;
+const FORME = /(^|\s)(s\.?\s?r\.?\s?l\.?(\s?s\.?)?|s\.?\s?a\.?\s?s\.?|s\.?\s?p\.?\s?a\.?|s\.?\s?n\.?\s?c\.?|s\.?\s?a\.?\s?p\.?\s?a\.?|ssdrl|ssd|asd|aps|ets|onlus|odv)(?=\s|,|$)/ig;
 export const slugCliente = nome => {
   if (!nome) return "Personale";
   const pulito = String(nome).replace(FORME, " ").split(/\s+/)

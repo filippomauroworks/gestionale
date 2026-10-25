@@ -5,7 +5,7 @@
 import { $, esc, store, toast, modal, closeModal } from "./util.js";
 import { stato } from "./dati.js";
 import { clienti, listino, righeCliente, ricarica } from "./anagrafiche.js";
-import { prossimoCodice, registra, documenti, trova, datiVersione } from "./registro.js";
+import { prossimoCodice, prossimaVersione, registra, documenti, trova, datiVersione } from "./registro.js";
 import { cartellaCliente, generaDocumento } from "./genera.js";
 import { cercaPerNome, creaCartella, cestina, MIME_CARTELLA } from "./drive.js";
 import { nomeFile, nomeCartellaCliente } from "./nomi.js";
@@ -16,7 +16,7 @@ import { numero, centesimi, eur, eurSegno, cifraCampo, qta, totali, fiscozen, sc
 
 /* ---------- Bozza ---------- */
 const BKEY = "fm-bozza-lista-v1";
-const BASE = () => ({step: "tipo", visited: ["tipo"], kind: "lavoro", cli: "", titolo: "", date: [""], luogo: "", note: "",
+const BASE = () => ({step: "tipo", visited: ["tipo"], kind: "lavoro", fromPrv: "", cli: "", titolo: "", date: [""], luogo: "", note: "",
   ritiro: "", riconsegna: "", giorni: "", items: {}, noleggi: [], filter: "", noRound: true, cifra: "", saved: null});
 let b = store.get(BKEY, null);
 if (b) b = Object.assign(BASE(), b);
@@ -174,7 +174,10 @@ function passoHTML(){
   switch (b.step){
     case "tipo": return `<h2 class="field-q">Che lista ti serve?</h2><p class="hint">La lista per un lavoro è per te; quella per un noleggio va a chi noleggia, con prezzi e totale.</p>
       ${opzione(A, "kind", "lavoro", b.kind, "Per un lavoro", "Checklist da portare sul set, con caselle da spuntare")}
-      ${opzione(A, "kind", "noleggio", b.kind, "Noleggio a terzi", "Attrezzatura data in noleggio, con prezzi, sconti e totale")}`;
+      ${opzione(A, "kind", "noleggio", b.kind, "Noleggio a terzi", "Attrezzatura data in noleggio, con prezzi, sconti e totale")}
+      ${!nol && documenti("PRV").length ? `<h3 class="grp">Partire da un preventivo</h3>
+        <label class="f"><span>Preventivo (facoltativo)</span>${selezione(`${A}="fromPrv" style="max-width:420px"`, [["", "Nessuno, parto da zero"], ...documenti("PRV").slice().sort((x, y) => y.codice.localeCompare(x.codice)).map(d => [d.codice, `${d.codice} · ${d.titolo} · ${d.cliente?.nome || ""}`])], b.fromPrv)}
+        <div class="cnt">Riprende cliente, titolo, date, luogo, articoli e noleggi esterni. La lista prende lo stesso codice del preventivo, e resta modificabile.</div></label>` : ""}`;
 
     case "dati": return nol
       ? `<h2 class="field-q">Chi noleggia e quando</h2><p class="hint">I giorni si calcolano dalle date, contando 24 ore per giorno; puoi cambiarli.</p>
@@ -184,7 +187,7 @@ function passoHTML(){
           <label class="f"><span>Riconsegna</span><input class="inp" type="date" ${A}="riconsegna" value="${esc(b.riconsegna)}" style="max-width:200px"></label>
           <label class="f"><span>Giorni</span><input class="inp num" type="number" min="1" ${A}="giorni" value="${esc(b.giorni !== "" ? b.giorni : String(giorniDefault()))}"></label></div>
         <div class="cnt" id="scHint"></div>`
-      : `<h2 class="field-q">Il lavoro</h2><p class="hint">Cliente, date e luogo sono facoltativi.</p>
+      : `<h2 class="field-q">Il lavoro</h2><p class="hint">${b.fromPrv ? `Dati ripresi dal preventivo ${esc(b.fromPrv)}: controllali.` : "Cliente, date e luogo sono facoltativi."}</p>
         <label class="f"><span>Titolo del lavoro</span><input class="inp" ${A}="titolo" value="${esc(b.titolo)}" placeholder="Es. Convention di fine anno"></label>
         <label class="f"><span>Cliente</span>${selezione(`${A}="cli" style="max-width:420px"`, [["", "Lavoro personale"], ...opzClienti], b.cli)}</label>
         <div class="f"><span>Date di ripresa</span>
@@ -221,7 +224,9 @@ function passoHTML(){
       <div id="aTotBox">${riquadroTotale()}</div>`;
 
     case "riep": {
-      const nome = nomeFile({codice: codiceProvvisorio(), tipo: "ATT", titolo: titolo(), cliente: c?.nome});
+      const codice = b.fromPrv || codiceProvvisorio(), esiste = b.fromPrv && trova(b.fromPrv, "ATT");
+      const v = esiste ? Math.max(...esiste.versioni.map(x => x.v)) + 1 : 1;
+      const nome = nomeFile({codice, tipo: "ATT", titolo: titolo(), cliente: c?.nome, versione: v});
       const righe = righeTrello();
       return `<h2 class="field-q">Controlla e genera</h2><p class="hint">${nol ? "Il PDF va a chi noleggia." : "Il PDF è per te, con le caselle da spuntare; per Trello usa la copia qui sotto."}</p>
         ${riepilogo()}
@@ -230,7 +235,7 @@ function passoHTML(){
         <div class="out">
           <p><strong>Cartella</strong><br>${esc(stato.impostazioni.file.archivioListe?.name || "Archivio liste attrezzatura")} / ${esc(nomeCartellaCliente(c))}</p>
           <p><strong>File</strong><br><span class="fname">${esc(nome)}</span> <span class="muted">(Google Doc)</span><br><span class="fname">${esc(nome)}.pdf</span></p>
-          <p class="muted">Il codice definitivo si assegna alla generazione: è il primo libero dell’anno.</p>
+          <p class="muted">${b.fromPrv ? `Stesso codice del preventivo ${esc(b.fromPrv)}${esiste ? `: la lista esiste già e diventa la V${String(v).padStart(2, "0")}` : ""}.` : "Il codice definitivo si assegna alla generazione: è il primo libero dell’anno."}</p>
         </div>`;
     }
   }
@@ -247,7 +252,7 @@ function codiceProvvisorio(){
 function riepilogo(){
   const c = cliente(), trattino = `<span class="muted">–</span>`, date = b.date.filter(Boolean);
   return `<dl class="sum">
-    <dt>Tipo</dt><dd>${b.kind === "noleggio" ? "Noleggio a terzi" : "Lavoro"}</dd>
+    <dt>Tipo</dt><dd>${b.kind === "noleggio" ? "Noleggio a terzi" : "Lavoro"}${b.fromPrv ? `, dal preventivo ${esc(b.fromPrv)}` : ""}</dd>
     <dt>${b.kind === "noleggio" ? "Noleggia" : "Cliente"}</dt><dd>${c ? esc(c.nome) : (b.kind === "noleggio" ? trattino : "Lavoro personale")}</dd>
     <dt>Titolo</dt><dd>${titolo() ? esc(titolo()) : trattino}</dd>
     ${b.kind === "noleggio" ? `<dt>Periodo</dt><dd>${b.ritiro && b.riconsegna ? `${dataBreve(b.ritiro)} → ${dataBreve(b.riconsegna)}, ${qta(giorni())} gg` : trattino}</dd>`
@@ -297,7 +302,21 @@ function ridisegna(fuoco){
 }
 const vaiAlPasso = id => { b.step = id; if (!b.visited.includes(id)) b.visited.push(id); salva(); vistaProcedura($("#view")); };
 
-const RIDISEGNA = ["kind", "cli", "noRound", "ritiro", "riconsegna"];
+const RIDISEGNA = ["kind", "fromPrv", "cli", "noRound", "ritiro", "riconsegna"];
+
+// Riprende cliente, titolo, date, luogo, articoli e noleggi esterni da un preventivo in archivio.
+async function daPreventivo(codice){
+  try {
+    const d = trova(codice, "PRV"), p = await datiVersione(d);
+    Object.assign(b, {fromPrv: codice, cli: d.cliente?.id || "", titolo: d.titolo, date: p.date?.length ? [...p.date] : [""], luogo: p.luogo || ""});
+    b.items = {};
+    if (p.attMode === "lista") Object.entries(p.items || {}).forEach(([id, x]) => { if (articolo(id)) b.items[id] = {qta: x.qta}; });
+    b.noleggi = (p.noleggi || []).map(n => ({nome: n.desc || "", fornitore: "", qta: "1", paga: n.paga === "cliente" ? "cliente" : "io"}));
+    salva(); ridisegna(`[${A}="fromPrv"]`);
+    const n = Object.keys(b.items).length;
+    toast(n ? `Ripresi ${n} articoli dal preventivo ${codice}` : `Il preventivo ${codice} non ha una lista: ripresi cliente, titolo, date e luogo`);
+  } catch(e){ gestisciErrore(e, () => daPreventivo(codice)); }
+}
 function campo(el){
   if (!b || !L) return;
   let rr = false, fuoco = null;
@@ -312,7 +331,8 @@ function campo(el){
   else {
     const f = el.getAttribute(A);
     b[f] = el.hasAttribute("data-bool") ? el.checked : el.value;
-    if (f === "kind" && el.value === "noleggio") Object.keys(b.items).forEach(id => { if (!articolo(id).noleggiabile) delete b.items[id]; });
+    if (f === "kind" && el.value === "noleggio"){ b.fromPrv = ""; Object.keys(b.items).forEach(id => { if (!articolo(id).noleggiabile) delete b.items[id]; }); }
+    if (f === "fromPrv" && el.value){ salva(); daPreventivo(el.value); return; }
     if (f === "ritiro" || f === "riconsegna") b.giorni = "";
     if (RIDISEGNA.includes(f)){ rr = true; fuoco = el.type === "radio" ? `[${A}="${f}"][value="${el.value}"]` : `[${A}="${f}"]`; }
   }
@@ -361,10 +381,11 @@ async function genera(){
     if (!tpl) throw new CollegamentoMancante(nol ? "Template ATT — Noleggio a terzi" : "Template ATT — Lista attrezzatura lavoro");
     const passo = avanzamento("Genero la lista");
     passo("Assegno il codice");
-    const codice = await prossimoCodice(), c = cliente();
+    const codice = b.fromPrv || await prossimoCodice(), c = cliente();
+    const v = b.fromPrv ? await prossimaVersione(codice, "ATT") : 1;
     passo("Preparo la cartella del cliente");
     const cartella = await cartellaCliente(f.archivioListe.id, c);
-    const nome = nomeFile({codice, tipo: "ATT", titolo: titolo(), cliente: c?.nome});
+    const nome = nomeFile({codice, tipo: "ATT", titolo: titolo(), cliente: c?.nome, versione: v});
     const r = await generaDocumento({template: tpl.id, cartella: cartella.id, nome, dati: datiTemplate(codice)}, passo);
     passo("Aggiorno il registro");
     const t = nol ? conto() : null;
@@ -372,11 +393,11 @@ async function genera(){
     ["step", "visited", "filter", "saved"].forEach(k => delete dati[k]);
     Object.assign(dati, {titolo: titolo(), trello: righeTrello(), articoli: scelti().map(({a, q}) => ({id: a.id, nome: a.nome, cat: a.cat, q, prezzo: a.noleggio})),
       totali: t && {servizi: t.servizi, riv: t.riv, bollo: t.bollo, totale: t.totale, voluto: t.voluto, compenso: t.fz?.ok ? t.fz.compenso : null}});
-    await registra({codice, tipo: "ATT", cliente: c, titolo: titolo(), v: 1, nome, doc: r.doc.id, pdf: r.pdf.id, dati});
+    await registra({codice, tipo: "ATT", cliente: c, titolo: titolo(), v, nome, doc: r.doc.id, pdf: r.pdf.id, dati});
     const trello = !nol && righeTrello();
     b = null; store.del(BKEY);
     location.hash = "attrezzatura";
-    modal(`Lista ${codice} generata`,
+    modal(`Lista ${codice}${v > 1 ? ` V${String(v).padStart(2, "0")}` : ""} generata`,
       `<p class="fname">${esc(nome)}</p>${r.rimasti.length ? `<div class="note warn">Nel documento sono rimasti questi segnaposto: ${esc(r.rimasti.join(", "))}. Controlla il template.</div>` : ""}
        <div class="actions" style="justify-content:flex-start;margin-top:12px"><a class="btn" href="${linkDoc(r.doc.id)}" target="_blank" rel="noopener">Apri il Doc</a>
        <button class="btn" data-action="scarica-pdf" data-id="${esc(r.pdf.id)}" data-nome="${esc(nome)}">Scarica il PDF</button>

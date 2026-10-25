@@ -3,6 +3,7 @@
 import { $, esc, store, toast, modal } from "./util.js";
 import { gestisciErrore, impostaGanci } from "./errori.js";
 import * as liste from "./liste.js";
+import * as preventivi from "./preventivi.js";
 import { documenti, ultima } from "./registro.js";
 import { rigaDocumento, scaricaPdf } from "./elenco.js";
 import { copia } from "./procedura.js";
@@ -78,14 +79,14 @@ async function avvia(){
 function home(){
   const n = collegati(), tot = TUTTI_COLLEGAMENTI.length;
   const recenti = documenti().slice().sort((x, y) => ultima(y).data.localeCompare(ultima(x).data) || y.codice.localeCompare(x.codice)).slice(0, 5);
-  const card = [liste.cardBozza()].filter(Boolean);
+  const card = [preventivi.cardBozza(), liste.cardBozza()].filter(Boolean);
   if (n < tot) card.unshift(`<div class="draft-card"><div><strong>Collegamenti da completare</strong><div class="muted">${n} di ${tot} file e cartelle scelti in Impostazioni.</div></div><a class="btn primary" href="#impostazioni">Impostazioni</a></div>`);
   return `<div class="page">
     <div class="page-head"><div><h1>Buongiorno, Filippo</h1><p>Cosa prepari oggi?</p></div></div>
     ${card.length ? `<div class="drafts">${card.join("")}</div>` : ""}
     <div class="quick">
       <button class="tile" data-action="lista-nuova"><strong>Lista attrezzatura</strong><span>Per un lavoro o un noleggio</span></button>
-      <button class="tile" data-action="presto" data-fase="4"><strong>Preventivo</strong><span>Servizi, kit attrezzatura, totali</span></button>
+      <button class="tile" data-action="prv-nuovo"><strong>Preventivo</strong><span>Servizi, kit attrezzatura, totali</span></button>
       <button class="tile" data-action="presto" data-fase="5"><strong>Contratto</strong><span>Procedura guidata completa</span></button>
       <button class="tile" data-action="presto" data-fase="6"><strong>Copia di cortesia</strong><span>Dal PDF di Fiscozen</span></button>
     </div>
@@ -95,7 +96,6 @@ function home(){
 }
 
 const SEZIONI = {
-  preventivi: {title:"Preventivi", desc:"Salvati in Archivio preventivi, una cartella per cliente.", fase:4},
   contratti: {title:"Contratti", desc:"Salvati in Archivio contratti, una cartella per cliente.", fase:5},
   cortesia: {title:"Copie di cortesia", desc:"Dal PDF di Fiscozen, salvate in Archivio copie di cortesia.", fase:6}
 };
@@ -240,8 +240,8 @@ async function provaTemplate(){
 }
 
 /* ---------- Router ---------- */
-const TITLES = {home:"Home", attrezzatura:"Attrezzatura", "attrezzatura-nuova":"Attrezzatura", preventivi:"Preventivi", contratti:"Contratti", cortesia:"Copie di cortesia", impostazioni:"Impostazioni"};
-const PROCEDURE = {"attrezzatura-nuova": "attrezzatura"};
+const TITLES = {home:"Home", attrezzatura:"Attrezzatura", "attrezzatura-nuova":"Attrezzatura", preventivi:"Preventivi", "preventivi-nuovo":"Preventivi", contratti:"Contratti", cortesia:"Copie di cortesia", impostazioni:"Impostazioni"};
+const PROCEDURE = {"attrezzatura-nuova": "attrezzatura", "preventivi-nuovo": "preventivi"};
 function route(){
   if (!stato.impostazioni) return;
   let h = location.hash.slice(1) || "home";
@@ -254,6 +254,8 @@ function route(){
   if (h === "home") v.innerHTML = home();
   else if (h === "attrezzatura") v.innerHTML = liste.vistaSezione();
   else if (h === "attrezzatura-nuova"){ liste.vistaProcedura(v); return; }
+  else if (h === "preventivi") v.innerHTML = preventivi.vistaSezione();
+  else if (h === "preventivi-nuovo"){ preventivi.vistaProcedura(v); return; }
   else if (SEZIONI[h]) v.innerHTML = sezione(h);
   else if (h === "impostazioni"){
     v.innerHTML = impostazioni();
@@ -268,7 +270,7 @@ document.addEventListener("click", e => {
   const a = e.target.closest("[data-action]");
   if (!a) return;
   const act = a.dataset.action;
-  if (liste.click(act, a)) return;
+  if (liste.click(act, a) || preventivi.click(act, a)) return;
   if (act === "scarica-pdf"){ e.preventDefault(); scaricaPdf(a.dataset.id, a.dataset.nome).catch(err => gestisciErrore(err)); }
   else if (act === "copia-testo") copia(a.dataset.testo).then(() => toast("Copiato: in Trello incollalo in una checklist"), () => toast("Copia non riuscita"));
   else if (act === "panel") $("#panel")?.classList.toggle("open");
@@ -282,7 +284,7 @@ document.addEventListener("click", e => {
 
 const erroreSalvataggio = e => gestisciErrore(e, () => salvaImpostazioni().catch(gestisciErrore));
 document.addEventListener("input", e => {
-  if (liste.input(e.target)) return;
+  if (liste.input(e.target) || preventivi.input(e.target)) return;
   const t = e.target, k = t.dataset.setting;
   if (!k || !stato.impostazioni || k === "tema") return;
   if (k === "maggiorazione"){
@@ -295,7 +297,7 @@ document.addEventListener("input", e => {
   salvaImpostazioniDopo(erroreSalvataggio);
 });
 document.addEventListener("change", e => {
-  if (liste.change(e.target)) return;
+  if (liste.change(e.target) || preventivi.change(e.target)) return;
   const t = e.target;
   if (t.dataset.setting === "tema" && stato.impostazioni){
     stato.impostazioni.tema = t.value;
