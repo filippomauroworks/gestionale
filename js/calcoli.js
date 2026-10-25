@@ -75,3 +75,20 @@ export function elencoDate(isos){
   });
   return unisci(pezzi);
 }
+
+/* ---------- Numeri in lettere ---------- */
+const UNITA_L = ["zero","uno","due","tre","quattro","cinque","sei","sette","otto","nove","dieci","undici","dodici","tredici","quattordici","quindici","sedici","diciassette","diciotto","diciannove"];
+const DECINE_L = ["","","venti","trenta","quaranta","cinquanta","sessanta","settanta","ottanta","novanta"];
+function intero(n){
+  if (n < 20) return UNITA_L[n];
+  if (n < 100){ let t = DECINE_L[Math.floor(n / 10)]; const r = n % 10; if (r === 1 || r === 8) t = t.slice(0, -1); return t + (r ? UNITA_L[r] : ""); }
+  if (n < 1000){ const c = Math.floor(n / 100), r = n % 100; let s = (c === 1 ? "" : UNITA_L[c]) + "cento"; if (Math.floor(r / 10) === 8 || r === 8) s = s.slice(0, -1); return s + (r ? intero(r) : ""); }
+  if (n < 1e6){ const m = Math.floor(n / 1000), r = n % 1000; return (m === 1 ? "mille" : intero(m) + "mila") + (r ? intero(r) : ""); }
+  const M = Math.floor(n / 1e6), r = n % 1e6; return (M === 1 ? "unmilione" : intero(M) + "milioni") + (r ? intero(r) : "");
+}
+// Accento sui composti che finiscono in "tre": ventitré, centotré.
+export const inLettere = n => { const s = intero(n); return s.length > 3 && s.endsWith("tre") ? s.slice(0, -3) + "tré" : s; };
+// 100000 → "mille/00 euro"
+export const euroInLettere = c => `${inLettere(Math.floor(c / 100))}/${String(c % 100).padStart(2, "0")} euro`;
+// 10 → "dieci (10)"
+export const conLettere = n => `${inLettere(n)} (${n})`;

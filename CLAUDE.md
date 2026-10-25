@@ -245,6 +245,15 @@ Il pannello laterale mostra i totali per fase, attrezzatura, noleggi, totale ser
 
 Le fasi restano vuote.
 
+**Scelte fatte nello sviluppo (punto 5)**
+
+- Il cliente si sceglie da un menu a tendina; per le aziende il firmatario parte dalla colonna Referente.
+- Almeno una fase è obbligatoria (il Punto 2 dice "si articola nelle seguenti fasi").
+- Musiche di repertorio: due campi, Libreria e Piano facoltativo → "dalla libreria Artlist (piano Pro)".
+- Soluzioni in percentuale: l'ultima prende il resto in centesimi, così la somma torna sempre al totale.
+- Dal preventivo il contratto prende lo stesso codice; se un contratto con quel codice esiste già, diventa la versione successiva. Le spese si uniscono con "e" prima dell'ultima ("alloggio e noleggio di attrezzatura").
+- **Testi da far verificare** (non erano nella guida né nel prototipo, li ha proposti Claude): licenza esclusiva ("Per la durata della licenza il Videomaker non concede a terzi l'uso delle opere negli stessi ambiti."), foro "Torino o sede del cliente", foro "luogo della prestazione", e le relative righe del Punto 11 nell'approvazione specifica. Stanno in `js/contratti.js` (fraseLicenza, fraseForo, foroBreve).
+
 ### 5.4 Copia di cortesia
 
 1. "Carica PDF Fiscozen": pdf.js estrae il testo e l'app riconosce numero e data, destinatario, righe, rivalsa, bollo, totale, intestatario, IBAN, scadenza e note.

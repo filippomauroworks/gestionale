@@ -774,7 +774,6 @@ export async function datiPreventivo(codice){
 /* ---------- Eventi ---------- */
 export function click(act, el){
   if (act === "prv-nuovo"){ nuovoPreventivo(); return true; }
-  if (act === "prv-contratto"){ toast("“Crea contratto” arriva con il punto 5: contratti."); return true; }
   if (!act.startsWith("q-") || !b) return false;
   const st = passi(), i = st.indexOf(b.step);
   if (act === "q-goto"){ const id = el.dataset.id; if (b.visited.includes(id) || id === b.step) vaiAlPasso(id); }
