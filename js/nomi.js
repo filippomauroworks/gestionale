@@ -9,8 +9,15 @@ const pad3 = n => String(n).padStart(3, "0");
 export const slug = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9 ]/g, " ")
   .split(/\s+/).filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join("");
 
-// Ragione sociale senza forma societaria; "Personale" se manca il cliente.
-export const slugCliente = nome => nome ? slug(String(nome).replace(/\b(srls|srl|sas|spa|snc|s\.r\.l\.s?|s\.a\.s|s\.p\.a|s\.n\.c)\.?(?=\s|$)/ig, "")) || "Personale" : "Personale";
+/* Ragione sociale senza forma societaria; "Personale" se manca il cliente.
+   Le parole tutte maiuscole diventano "Parola": "SALA GIOCHI S.r.l." → "SalaGiochi". */
+const FORME = /(^|\s)(s\.?\s?r\.?\s?l\.?(\s?s\.?)?|s\.?\s?a\.?\s?s\.?|s\.?\s?p\.?\s?a\.?|s\.?\s?n\.?\s?c\.?|s\.?\s?a\.?\s?p\.?\s?a\.?|ssdrl|ssd|asd|aps)(?=\s|,|$)/ig;
+export const slugCliente = nome => {
+  if (!nome) return "Personale";
+  const pulito = String(nome).replace(FORME, " ").split(/\s+/)
+    .map(w => /^[A-ZÀ-Ý]{2,}$/.test(w) ? w[0] + w.slice(1).toLowerCase() : w).join(" ");
+  return slug(pulito) || "Personale";
+};
 
 export function nomeFile({codice, tipo, titolo, cliente, versione = 1, dettaglio = false}){
   return `${codice}_${tipo}_${slug(titolo).slice(0, 32)}_${slugCliente(cliente)}_FilippoMauro${dettaglio ? "_Dettaglio" : ""}${versione > 1 ? "_V" + pad2(versione) : ""}`;

@@ -161,9 +161,15 @@ function fasiBlocchi(doc, dati){
   });
   const out = [];
   // Dal fondo: ogni cancellazione non sposta quelle prima.
+  const chiusiSpenti = new Set(req.filter(r => !r.attivo).map(r => r.b));
   req.sort((x, y) => y.a - x.a).forEach(({a, b, attivo}) => {
     if (attivo){
       out.push(...cancellaParagrafo({el: lista[b], cont: {corpo: lista}, i: b}));
+      // L'interruzione di pagina del marcatore passa al primo paragrafo del blocco,
+      // ma non se prima c'era solo un blocco tolto (eviterebbe una pagina vuota).
+      const dopo = lista[a + 1];
+      if (lista[a].paragraph.paragraphStyle?.pageBreakBefore && dopo?.paragraph && !chiusiSpenti.has(a - 1))
+        out.push({updateParagraphStyle: {range: {startIndex: dopo.startIndex, endIndex: dopo.startIndex + 1}, paragraphStyle: {pageBreakBefore: true}, fields: "pageBreakBefore"}});
       out.push(...cancellaParagrafo({el: lista[a], cont: {corpo: lista}, i: a}));
     } else out.push(...cancellaTratto(lista, a, b));
   });

@@ -25,6 +25,7 @@ Questo file è la fonte di verità del progetto. Claude Code lo legge a ogni ses
 - **Font**: EB Garamond (titoli e cifre) e DM Sans (testo) da Google Fonts.
 - **Repository**: `github.com/filippomauroworks/gestionale`, pubblicato con GitHub Pages da `main`, cartella radice. I `.docx` dei template restano fuori (`.gitignore`): contengono P.IVA, C.F. e indirizzo, e vivono su Drive. Pagina della privacy: `privacy.html`.
 - **File**: `index.html`, `css/app.css`, `config.js`; in `js/`: `app.js` (guscio, viste, Impostazioni), `google.js` (accesso, Picker, `api()`), `drive.js` (Drive v3 di base), `dati.js` (cartella dati, impostazioni, registro), `fogli.js` (schemi e lettura dei fogli), `util.js`.
+- **Moduli per le sezioni**: `calcoli.js` (centesimi, formati, Fiscozen, sconto noleggio, date), `anagrafiche.js` (clienti, conti, attrezzatura, servizi e kit già normalizzati; un "-" da solo in una cella vale vuoto), `registro.js` (codici, versioni, JSON dei dati), `elenco.js` (righe dell'elenco, scarica PDF), `procedura.js` (pezzi comuni delle procedure guidate), `errori.js`, `liste.js` (sezione Attrezzatura).
 - **Prova in locale**: `python3 -m http.server 8000` dalla cartella del progetto. `http://localhost:8000` deve essere tra le origini JavaScript autorizzate del client OAuth e tra i referrer della chiave API.
 
 ### Dove stanno i dati dell'app
@@ -79,7 +80,7 @@ In ogni archivio l'app crea una sottocartella per cliente chiamata `CLI-001 – 
 - **Formato**: `CODICE_TIPO_Progetto_Cliente_FilippoMauro[_Vxx]`, per esempio `2026-016_CTR_VideocorsoADHD_GamMedical_FilippoMauro_V02`.
 - **Tipi**: PRV, CTR, ATT. Numerazione unica per anno e per tutti i tipi.
 - **Progetto**: titolo in CamelCase senza accenti, tagliato a 32 caratteri.
-- **Cliente**: ragione sociale in CamelCase senza srl, srls, sas, spa, snc; `Personale` se manca.
+- **Cliente**: ragione sociale in CamelCase senza srl, srls, sas, spa, snc (anche con i punti, es. S.r.l.) e senza ssdrl, ssd, asd, aps, sapa; le parole tutte maiuscole diventano "Parola" (`SALA GIOCHI S.r.l.` → `SalaGiochi`, `GAM Medical srls` → `GamMedical`); `Personale` se manca. Il titolo invece resta com'è scritto (`ADHD` resta `ADHD`).
 - **Stesso codice**: una lista ATT o un contratto creati da un preventivo prendono lo stesso codice del preventivo. Il tipo distingue i documenti. Un contratto nato da zero prende un codice nuovo.
 - **Preventivo dettagliato**: stesso codice e stessa versione, con il suffisso `_Dettaglio` prima della versione.
 - **Copie di cortesia**: `FT-2026-038_CDC_Cliente_FilippoMauro[_Vxx]`, usando il numero di fattura di Fiscozen.
@@ -194,6 +195,14 @@ Il pannello laterale mostra i totali per fase, attrezzatura, noleggi, totale ser
    - noleggi esterni come `Nome (noleggio Fornitore)`.
 
    Il PDF della lista lavoro è per lui, con caselle vuote; quello del noleggio va a chi noleggia, con prezzi e totale.
+
+**Scelte fatte nello sviluppo (punto 3)**
+
+- Il cliente si sceglie da un menu a tendina (con 15+ clienti l'elenco a pulsanti del prototipo era troppo lungo); nel noleggio è obbligatorio.
+- "Partire da un preventivo" arriva con il punto 4, quando esistono i preventivi.
+- Trello dall'elenco: le righe si salvano nel JSON della lista alla generazione, così restano uguali anche se il foglio cambia.
+- Listini e inventario (menu "Scarica") si generano nella cartella "Listini e inventario" dentro i dati dell'app e si scaricano in PDF. Nomi: `Listino_FilippoMauro_<data listino>`, `ListinoNoleggio_FilippoMauro_<data listino>`, `Inventario_FilippoMauro_<oggi>`. Rigenerare lo stesso listino manda il precedente nel cestino (non sono documenti d'archivio).
+- Nel listino completo il noleggio parte su una pagina nuova: l'interruzione di pagina del marcatore `{{#NOLEGGIO}}` passa al titolo, tranne quando prima c'era solo un blocco tolto.
 
 ### 5.3 Contratto (9 passi)
 
