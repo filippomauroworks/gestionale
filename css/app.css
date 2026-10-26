@@ -175,6 +175,11 @@ textarea.inp{min-height:88px;resize:vertical;max-width:600px;line-height:1.45}
 .inv-row.att-row{grid-template-columns:20px minmax(0,1fr) auto 44px 70px}
 .trello-head .btn{white-space:nowrap}
 .att-row .av{font-size:12px;text-align:right}
+/* Articoli scritti a mano: nome e prezzo si scrivono nella riga */
+.inv-row .inp.man-nome{max-width:none;width:100%}
+.inv-row .inp.man-prezzo{max-width:90px;text-align:right}
+.man-x{min-width:0;padding:4px 10px;justify-self:end}
+.man-add{padding:8px 4px 4px}
 .trello{max-width:700px;border:1px solid var(--rule);border-radius:8px;padding:14px 16px;margin-top:20px}
 .trello-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px}
 .trello pre{white-space:pre-wrap;font-family:var(--sans);font-size:13px;line-height:1.6;background:var(--bg);border-radius:6px;padding:10px 12px;margin:0;max-height:260px;overflow:auto}
@@ -305,6 +310,8 @@ textarea.inp{min-height:88px;resize:vertical;max-width:600px;line-height:1.45}
   .inv-row>span.muted{display:none}
   .inv-row.att-row{grid-template-columns:20px minmax(0,1fr) 40px 64px}
   .att-row .av{display:block!important}
+  .inv-row.man-row{grid-template-columns:20px minmax(0,1fr) auto 40px 64px}
+  .inv-row .inp.man-prezzo{max-width:72px}
 }
 
 /* Accesso */

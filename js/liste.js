@@ -8,6 +8,7 @@ import { clienti, listino, righeCliente, ricarica } from "./anagrafiche.js";
 import { prossimoCodice, prossimaVersione, registra, documenti, trova, datiVersione } from "./registro.js";
 import { cartellaCliente, generaDocumento } from "./genera.js";
 import { cercaPerNome, creaCartella, cestina, MIME_CARTELLA } from "./drive.js";
+import { articoloManuale, elencoManuali, nuovoManuale, togliManuale, copiaManuali, erroreManuali, campoNome, campoPrezzo, tastoTogli, tastoAggiungi } from "./manuali.js";
 import { nomeFile, nomeCartellaCliente } from "./nomi.js";
 import { rigaDocumento, filtra, linkDoc, scaricaPdf } from "./elenco.js";
 import { gestisciErrore, CollegamentoMancante } from "./errori.js";
@@ -18,7 +19,7 @@ import { numero, centesimi, eur, eurSegno, cifraCampo, qta, totali, fiscozen, sc
 /* ---------- Bozza ---------- */
 const BKEY = "fm-bozza-lista-v1";
 const BASE = () => ({step: "tipo", visited: ["tipo"], kind: "lavoro", fromPrv: "", cli: "", titolo: "", date: [{da: "", a: "", intervallo: false}], luogo: "", note: "",
-  ritiro: "", riconsegna: "", giorni: "", items: {}, noleggi: [], filter: "", noRound: true, cifra: "", edit: null, saved: null});
+  ritiro: "", riconsegna: "", giorni: "", items: {}, manuali: {}, nMan: 0, noleggi: [], filter: "", noRound: true, cifra: "", edit: null, saved: null});
 let b = store.get(BKEY, null);
 if (b) b = Object.assign(BASE(), b);
 const salva = () => { b.saved = new Date().toISOString(); store.set(BKEY, b); };
@@ -31,8 +32,9 @@ const passi = () => ["tipo", "dati", "articoli", ...(b.kind === "noleggio" ? ["t
 let L = null, C = null;
 async function caricaFogli(){ [L, C] = await Promise.all([listino(), clienti()]); }
 
-const articolo = id => L.articoli.find(a => a.id === id);
-const disponibili = () => L.articoli.filter(a => a.attivo && (b.kind !== "noleggio" || a.noleggiabile));
+const articolo = id => L.articoli.find(a => a.id === id) || (b.manuali[id] && articoloManuale(id, b.manuali[id]));
+const tutti = () => [...L.articoli, ...elencoManuali(b)];   // foglio e articoli scritti a mano
+const disponibili = () => tutti().filter(a => a.attivo && (b.kind !== "noleggio" || a.noleggiabile));
 const cliente = () => b.cli ? C.clienti.find(c => c.id === b.cli) || null : null;
 const giorniDefault = () => b.ritiro && b.riconsegna ? Math.max(1, giorniTra(b.ritiro, b.riconsegna)) : 1;
 const giorni = () => numero(b.giorni !== "" ? b.giorni : giorniDefault()) || 0;
@@ -41,7 +43,7 @@ const pezzi = () => Object.values(b.items).reduce((s, x) => s + (numero(x.qta) |
 // Articoli scelti nell'ordine delle categorie, poi del foglio.
 function scelti(){
   const out = [];
-  for (const cat of L.categorie) for (const a of L.articoli)
+  for (const cat of L.categorie) for (const a of tutti())
     if (a.cat === cat && b.items[a.id]) out.push({a, q: numero(b.items[a.id].qta) || 0});
   return out;
 }
@@ -148,7 +150,7 @@ function riquadroArticoli(){
   if (!n && !b.noleggi.length) return `<p class="muted" style="margin:0 0 16px">Nessun articolo spuntato.</p>`;
   if (b.kind === "noleggio"){
     const t = conto();
-    return `<div class="kpi"><div><small>Articoli</small><strong>${n}</strong><span>${p} pezzi in tutto</span></div><div><small>Al giorno</small><strong>${eur(t.alGiorno)}</strong><span>prezzi di noleggio</span></div><div><small>Per ${qta(t.g)} ${t.g === 1 ? "giorno" : "giorni"}</small><strong>${eur(t.sub - t.sconto)}</strong><span>${t.sc ? `sconto ${t.sc}% compreso` : "nessuno sconto"}</span></div></div>`;
+    return `<div class="kpi"><div><small>Articoli</small><strong>${n}</strong><span>${p} ${p === 1 ? "pezzo" : "pezzi"} in tutto</span></div><div><small>Al giorno</small><strong>${eur(t.alGiorno)}</strong><span>prezzi di noleggio</span></div><div><small>Per ${qta(t.g)} ${t.g === 1 ? "giorno" : "giorni"}</small><strong>${eur(t.sub - t.sconto)}</strong><span>${t.sc ? `sconto ${t.sc}% compreso` : "nessuno sconto"}</span></div></div>`;
   }
   return `<div class="kpi"><div><small>Articoli</small><strong>${n}</strong><span>dal tuo inventario</span></div><div><small>Pezzi in tutto</small><strong>${p}</strong><span>da spuntare sul set</span></div><div><small>Noleggio esterno</small><strong>${b.noleggi.length}</strong><span>${b.noleggi.length === 1 ? "articolo" : "articoli"}</span></div></div>`;
 }
@@ -210,7 +212,7 @@ function passoHTML(){
 
     case "articoli": {
       const lista = disponibili(), f = b.filter.toLowerCase();
-      return `<h2 class="field-q">${nol ? "Cosa noleggi" : "Cosa porti"}</h2><p class="hint">${nol ? "Solo gli articoli noleggiabili. Quelli a prezzo 0 risultano inclusi." : "Spunta gli articoli e indica quanti pezzi. Il massimo è quello che hai in inventario."}</p>
+      return `<h2 class="field-q">${nol ? "Cosa noleggi" : "Cosa porti"}</h2><p class="hint">${nol ? "Solo gli articoli noleggiabili. Quelli a prezzo 0 risultano inclusi." : "Spunta gli articoli e indica quanti pezzi. Il massimo è quello che hai in inventario."} Quello che non è nel foglio lo aggiungi a mano sotto la sua categoria.</p>
         <div id="aSum">${riquadroArticoli()}</div>
         <input class="search" type="search" placeholder="Cerca un articolo" data-afilter value="${esc(b.filter)}" aria-label="Cerca un articolo" style="margin-bottom:8px">
         <div class="inv">${L.categorie.map(cat => {
@@ -218,6 +220,16 @@ function passoHTML(){
           if (!its.length) return "";
           return `<h3 class="grp" data-acat="${esc(cat)}">${esc(cat)}</h3>${its.map(a => {
             const x = b.items[a.id], nascondi = f && !(a.nome + " " + a.id).toLowerCase().includes(f);
+            if (a.manuale){
+              const m = b.manuali[a.id];
+              return `<div class="inv-row att-row man-row" data-aname="${esc((a.nome + " " + a.id).toLowerCase())}" data-acat2="${esc(cat)}" ${nascondi ? "hidden" : ""}>
+                <input type="checkbox" data-aitem="${esc(a.id)}" data-k="on" ${x ? "checked" : ""} aria-label="Porta ${esc(a.nome || "articolo a mano")}">
+                ${campoNome("data-aman", a.id, m)}
+                ${nol ? campoPrezzo("data-aman", a.id, m, "noleggio") : "<span></span>"}
+                ${tastoTogli("a-mantogli", a.id, m)}
+                ${x ? `<input class="inp" inputmode="numeric" data-aitem="${esc(a.id)}" data-k="qta" value="${esc(x.qta)}" aria-label="Quantità ${esc(a.nome)}">` : "<span></span>"}
+              </div>`;
+            }
             return `<div class="inv-row att-row" data-aname="${esc((a.nome + " " + a.id).toLowerCase())}" data-acat2="${esc(cat)}" ${nascondi ? "hidden" : ""}>
               <input type="checkbox" id="ai-${esc(a.id)}" data-aitem="${esc(a.id)}" data-k="on" ${x ? "checked" : ""}>
               <label for="ai-${esc(a.id)}">${esc(a.nome)} <small class="muted">${esc(a.id)}</small></label>
@@ -225,7 +237,7 @@ function passoHTML(){
               <span class="muted av">su ${a.q}</span>
               ${x ? `<input class="inp" inputmode="numeric" data-aitem="${esc(a.id)}" data-k="qta" value="${esc(x.qta)}" aria-label="Quantità ${esc(a.nome)}">` : "<span></span>"}
             </div>`;
-          }).join("")}`;
+          }).join("")}${tastoAggiungi("a-manadd", cat, "data-aname")}`;
         }).join("")}</div>
         ${nol ? "" : noleggiEsterniHTML()}`;
     }
@@ -289,9 +301,10 @@ function valida(id){
     if (!Object.keys(b.items).length && !b.noleggi.length) return "Spunta almeno un articolo.";
     for (const [id, x] of Object.entries(b.items)){
       const a = articolo(id), q = numero(x.qta);
-      if (!(q > 0) || !Number.isInteger(q)) return `${a.nome}: indica la quantità.`;
+      if (!(q > 0) || !Number.isInteger(q)) return `${a.nome || "Articolo aggiunto a mano"}: indica la quantità.`;
       if (q > a.q) return `${a.nome}: in inventario ne hai ${a.q}.`;
     }
+    const em = erroreManuali(b, b.kind === "noleggio" ? "noleggio" : null); if (em) return em;
     if (b.noleggi.some(n => !n.nome.trim())) return "Noleggio esterno: scrivi il nome dell’articolo, oppure toglilo.";
     if (b.noleggi.some(n => !(numero(n.qta) > 0))) return "Noleggio esterno: indica la quantità.";
   }
@@ -323,6 +336,7 @@ async function daPreventivo(codice){
     const d = trova(codice, "PRV"), p = await datiVersione(d);
     Object.assign(b, {fromPrv: codice, cli: d.cliente?.id || "", titolo: d.titolo, date: normalizzaDate(p.date).length ? normalizzaDate(p.date) : BASE().date, luogo: p.luogo || ""});
     b.items = {};
+    copiaManuali(p.attMode === "lista" ? p : null, b);
     if (p.attMode === "lista") Object.entries(p.items || {}).forEach(([id, x]) => { if (articolo(id)) b.items[id] = {qta: x.qta}; });
     b.noleggi = (p.noleggi || []).map(n => ({nome: n.desc || "", fornitore: "", qta: "1", paga: n.paga === "cliente" ? "cliente" : "io"}));
     salva(); ridisegna(`[${A}="fromPrv"]`);
@@ -337,6 +351,9 @@ function campo(el){
     const id = el.dataset.aitem;
     if (el.dataset.k === "on"){ if (el.checked) b.items[id] = {qta: "1"}; else delete b.items[id]; rr = true; fuoco = `[data-aitem="${CSS.escape(id)}"][data-k="on"]`; }
     else if (b.items[id]) b.items[id].qta = el.value;
+  } else if (el.dataset.aman !== undefined){
+    const m = b.manuali[el.dataset.aman]; if (!m) return;
+    m[el.dataset.k] = el.value;
   } else if (el.dataset.an !== undefined){
     const n = b.noleggi[+el.dataset.an]; if (!n) return;
     n[el.dataset.k] = el.value;
@@ -485,6 +502,8 @@ export function click(act, el){
   else if (act === "a-prev"){ if (i > 0) vaiAlPasso(st[i - 1]); }
   else if (act === "a-next"){ const m = valida(b.step); if (m) $("#err").textContent = m; else vaiAlPasso(st[i + 1]); }
   else if (act === "a-noladd"){ b.noleggi.push({nome: "", fornitore: "", qta: "1", paga: "io"}); salva(); ridisegna(`[data-an="${b.noleggi.length - 1}"][data-k="nome"]`); }
+  else if (act === "a-manadd"){ const id = nuovoManuale(b, el.dataset.cat); salva(); ridisegna(`[data-aman="${id}"][data-k="nome"]`); }
+  else if (act === "a-mantogli"){ togliManuale(b, el.dataset.id); salva(); ridisegna(); }
   else if (act === "a-noldel"){ b.noleggi.splice(+el.dataset.i, 1); salva(); ridisegna(); }
   else if (act === "a-cifra"){ b.cifra = cifraCampo(+el.dataset.v); b.noRound = false; salva(); ridisegna(`[${A}="cifra"]`); }
   else if (act === "a-trello"){ const r = righeTrello(); copia(r.join("\n")).then(() => toast(`Copiate ${r.length} righe: in Trello incollale in una checklist`), () => toast("Copia non riuscita: seleziona il testo a mano")); }
@@ -494,7 +513,7 @@ export function click(act, el){
 }
 
 const testuale = el => el.tagName !== "SELECT" && el.type !== "radio" && el.type !== "checkbox";
-const deiCampi = el => el.matches(`[${A}],[data-aitem],[data-dt="a"],[data-an]`);
+const deiCampi = el => el.matches(`[${A}],[data-aitem],[data-aman],[data-dt="a"],[data-an]`);
 export function input(el){
   if (el.matches("[data-afilter]")){ filtroArticoli(el.value); return true; }
   if (el.matches("[data-filter]")){ filtra(el.value); return true; }

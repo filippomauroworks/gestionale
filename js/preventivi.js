@@ -14,13 +14,14 @@ import { rigaDocumento, filtra, linkDoc } from "./elenco.js";
 import { gestisciErrore, CollegamentoMancante } from "./errori.js";
 import { opzione, interruttore, selezione, barraPassi, avanzamento, campoDate, azioneDate, erroreDate } from "./procedura.js";
 import { registraApritore, avvisoModifica, ultimaVersione } from "./riapertura.js";
+import { articoloManuale, elencoManuali, nuovoManuale, togliManuale, copiaManuali, erroreManuali, campoNome, campoPrezzo, tastoTogli, tastoAggiungi } from "./manuali.js";
 import { numero, centesimi, eur, eurSegno, cifraCampo, qta, totali, fiscozen, oggi, dataLunga, dataBreve, elencoDate, normalizzaDate, giorniDate } from "./calcoli.js";
 
 /* ---------- Bozza ---------- */
 const BKEY = "fm-bozza-preventivo-v1";
 const BASE = () => ({step: "cliente", visited: ["cliente"], cli: "", titolo: "", desc: "", date: [{da: "", a: "", intervallo: false}], luogo: "", dataPrev: oggi(), validita: "30",
   voci: {}, nLib: 0,
-  attMode: "lista", attUnit: "g", attGiorni: "", attLivello: "", items: {}, override: "auto", listaMode: "kit", tetto: "top", tettoPrezzo: "", genAtt: true,
+  attMode: "lista", attUnit: "g", attGiorni: "", attLivello: "", items: {}, manuali: {}, nMan: 0, override: "auto", listaMode: "kit", tetto: "top", tettoPrezzo: "", genAtt: true,
   noleggi: [], accontoOn: false, accontoPerc: "30", revOn: false, revN: "2", consOn: false, consGiorni: "10", note: "",
   attNota: "", cifra: "", noRound: true, edit: null, saved: null});
 let b = store.get(BKEY, null);
@@ -45,7 +46,9 @@ const serviziFase = f => L.servizi.filter(s => s.attivo && faseDi(s.cat) === f);
 const faseVoce = (id, v) => v.libera ? v.fase : faseDi(servizio(id)?.cat || "");
 const nomeVoce = (id, v) => v.libera ? (v.nome.trim() || "Voce libera") : servizio(id)?.nome || id;
 const cliente = () => b.cli ? C.clienti.find(c => c.id === b.cli) || null : null;
-const articolo = id => L.articoli.find(a => a.id === id);
+const articolo = id => L.articoli.find(a => a.id === id) || (b.manuali[id] && articoloManuale(id, b.manuali[id]));
+const tutti = () => [...L.articoli, ...elencoManuali(b)];   // foglio e articoli scritti a mano
+const campoPrezzoPezzo = () => b.attUnit === "m" ? "lavoroMezza" : "lavoro";   // il prezzo che la lista mostra
 const kitUsabili = () => L.kit.filter(k => k.attivo && (b.attUnit === "m" ? k.prezzoMezza : k.prezzo) !== null);
 const magg = () => Number(stato.impostazioni.maggiorazione) || 0;
 // Giorni di ripresa: ogni giorno singolo e ogni giorno degli intervalli.
@@ -476,17 +479,21 @@ function passoHTML(){
       ${noleggiHTML()}`;
     }
 
-    case "lista": return `<h2 class="field-q">Lista attrezzatura</h2><p class="hint">Spunta quello che porti: il livello del kit si calcola da solo, a ${b.attUnit === "m" ? "mezza giornata" : "giornata"}.</p>
+    case "lista": return `<h2 class="field-q">Lista attrezzatura</h2><p class="hint">Spunta quello che porti: il livello del kit si calcola da solo, a ${b.attUnit === "m" ? "mezza giornata" : "giornata"}. Quello che non è nel foglio lo aggiungi a mano sotto la sua categoria, con il suo prezzo.</p>
       <div class="actions" style="margin-bottom:18px"><button class="btn" data-action="q-importa">Importa da una lista ATT</button></div>
       <div id="listaSum">${riquadroLista()}</div>
       <input class="search" type="search" placeholder="Cerca un articolo" data-qfilter aria-label="Cerca un articolo" style="margin-bottom:8px">
       <div class="inv">${L.categorie.map(cat => {
-        const its = L.articoli.filter(a => a.attivo && a.cat === cat);
+        const its = tutti().filter(a => a.attivo && a.cat === cat);
         if (!its.length) return "";
         return `<h3 class="grp" data-qcat="${esc(cat)}">${esc(cat)}</h3>${its.map(a => {
           const x = b.items[a.id];
+          if (a.manuale){
+            const m = b.manuali[a.id];
+            return `<div class="inv-row att-row man-row" data-qname="${esc((a.nome + " " + a.id).toLowerCase())}" data-qcat2="${esc(cat)}"><input type="checkbox" data-qitem="${esc(a.id)}" data-k="on" ${x ? "checked" : ""} aria-label="Porta ${esc(a.nome || "articolo a mano")}">${campoNome("data-qman", a.id, m)}${campoPrezzo("data-qman", a.id, m, campoPrezzoPezzo())}${tastoTogli("q-mantogli", a.id, m)}${x ? `<input class="inp" inputmode="numeric" data-qitem="${esc(a.id)}" data-k="qta" value="${esc(x.qta)}" aria-label="Quantità ${esc(a.nome)}">` : "<span></span>"}</div>`;
+          }
           return `<div class="inv-row att-row" data-qname="${esc((a.nome + " " + a.id).toLowerCase())}" data-qcat2="${esc(cat)}"><input type="checkbox" id="qi-${esc(a.id)}" data-qitem="${esc(a.id)}" data-k="on" ${x ? "checked" : ""}><label for="qi-${esc(a.id)}">${esc(a.nome)} <small class="muted">${esc(a.id)}</small></label><span class="muted">${eur(prezzoPezzo(a))}</span><span class="muted av">su ${a.q}</span>${x ? `<input class="inp" inputmode="numeric" data-qitem="${esc(a.id)}" data-k="qta" value="${esc(x.qta)}" aria-label="Quantità ${esc(a.nome)}">` : "<span></span>"}</div>`;
-        }).join("")}`;
+        }).join("")}${tastoAggiungi("q-manadd", cat, "data-qname")}`;
       }).join("")}</div>
       <h3 class="grp">Livello e prezzo</h3>
       <label class="f"><span>Livello del kit</span>${selezione(`${Q}="override" style="max-width:260px"`, [["auto", "Automatico"], ...kitUsabili().map(k => [k.nome, "Kit " + k.nome])], b.override)}</label>
@@ -568,9 +575,10 @@ function valida(id){
     if (!Object.keys(b.items).length) return "Spunta almeno un articolo, oppure torna indietro e scegli un’altra opzione.";
     for (const [iid, x] of Object.entries(b.items)){
       const a = articolo(iid), q = numero(x.qta);
-      if (!(q > 0) || !Number.isInteger(q)) return `${a.nome}: indica la quantità.`;
+      if (!(q > 0) || !Number.isInteger(q)) return `${a.nome || "Articolo aggiunto a mano"}: indica la quantità.`;
       if (q > a.q) return `${a.nome}: in inventario ne hai ${a.q}.`;
     }
+    const em = erroreManuali(b, campoPrezzoPezzo()); if (em) return em;
     const a = attrezzatura();
     if (a.oltre && (b.tetto === "mano" || !kitUsabili().length) && !(centesimi(b.tettoPrezzo) > 0)) return "Scrivi il prezzo dell’attrezzatura.";
   }
@@ -636,6 +644,9 @@ function campo(el){
     const id = el.dataset.qitem;
     if (el.dataset.k === "on"){ if (el.checked) b.items[id] = {qta: "1"}; else delete b.items[id]; rr = true; fuoco = `[data-qitem="${CSS.escape(id)}"][data-k="on"]`; }
     else if (b.items[id]) b.items[id].qta = el.value;
+  } else if (el.dataset.qman !== undefined){
+    const m = b.manuali[el.dataset.qman]; if (!m) return;
+    m[el.dataset.k] = el.value;
   } else if (el.dataset.qn !== undefined){
     const n = b.noleggi[+el.dataset.qn]; if (!n) return;
     n[el.dataset.k] = el.value;
@@ -667,6 +678,7 @@ async function importaLista(){
       try {
         const dati = await datiVersione(trova(codice, "ATT"));
         b.items = {};
+        copiaManuali(dati, b);
         Object.entries(dati?.items || {}).forEach(([id, x]) => { if (articolo(id)) b.items[id] = {qta: x.qta}; });
         salva(); ridisegna();
         toast(`Importati ${Object.keys(b.items).length} articoli dalla lista ${codice}`);
@@ -690,7 +702,7 @@ function datiTemplate(codice){
 function datiLista(codice){
   const c = cliente();
   const scelti = [];
-  for (const cat of L.categorie) for (const a of L.articoli) if (a.cat === cat && b.items[a.id]) scelti.push({a, q: numero(b.items[a.id].qta) || 0});
+  for (const cat of L.categorie) for (const a of tutti()) if (a.cat === cat && b.items[a.id]) scelti.push({a, q: numero(b.items[a.id].qta) || 0});
   const noleggi = b.noleggi.map(n => ({nome: n.desc.trim(), fornitore: "", qta: "1", paga: n.paga === "cliente" ? "cliente" : "io"}));
   const trello = scelti.map(({a, q}) => `${q > 1 ? q + "× " : ""}${a.nome}`).concat(noleggi.map(n => `${n.nome} (noleggio)`));
   const pezzi = scelti.reduce((s, x) => s + x.q, 0) + noleggi.length;
@@ -701,7 +713,7 @@ function datiLista(codice){
     NOLEGGI: noleggi.length > 0, NOL: noleggi.map(n => ({QTA: "1", NOME: n.nome, FORNITORE: "", CHI_PAGA: n.paga === "cliente" ? "Paga il cliente" : "Pago io"})),
     NOTE_LISTA: "", N_ARTICOLI: String(pezzi)};
   const dati = {kind: "lavoro", fromPrv: codice, cli: b.cli, titolo: b.titolo.trim(), date: b.date, luogo: b.luogo, note: "",
-    items: JSON.parse(JSON.stringify(b.items)), noleggi, trello, articoli: scelti.map(({a, q}) => ({id: a.id, nome: a.nome, cat: a.cat, q}))};
+    items: JSON.parse(JSON.stringify(b.items)), manuali: JSON.parse(JSON.stringify(b.manuali)), nMan: b.nMan, noleggi, trello, articoli: scelti.map(({a, q}) => ({id: a.id, nome: a.nome, cat: a.cat, q}))};
   return {template, dati};
 }
 
@@ -788,6 +800,8 @@ export function click(act, el){
   if (act === "q-goto"){ const id = el.dataset.id; if (b.visited.includes(id) || id === b.step) vaiAlPasso(id); }
   else if (act === "q-prev"){ if (i > 0) vaiAlPasso(st[i - 1]); }
   else if (act === "q-next"){ const m = valida(b.step); if (m) $("#err").textContent = m; else vaiAlPasso(st[i + 1]); }
+  else if (act === "q-manadd"){ const id = nuovoManuale(b, el.dataset.cat); salva(); ridisegna(`[data-qman="${id}"][data-k="nome"]`); }
+  else if (act === "q-mantogli"){ togliManuale(b, el.dataset.id); salva(); ridisegna(); }
   else if (act === "q-libadd"){ const id = "LIB-" + (++b.nLib); b.voci[id] = {on: true, libera: true, fase: el.dataset.fase, nome: "", unita: "Forfait", qta: "1", ris: "1", prezzo: "", importo: "", nota: "", modo: "tot", stima: "", fatt: "cliente", esterna: false, costo: "", cifra: ""}; salva(); ridisegna(`[data-qv="${id}"][data-k="nome"]`); }
   else if (act === "q-libdel"){ delete b.voci[el.dataset.id]; salva(); ridisegna(); }
   else if (act === "q-noladd"){ b.noleggi.push({desc: "", prezzo: "", paga: "io", cifra: ""}); salva(); ridisegna(`[data-qn="${b.noleggi.length - 1}"][data-k="desc"]`); }
@@ -800,7 +814,7 @@ export function click(act, el){
 }
 
 const testuale = el => el.tagName !== "SELECT" && el.type !== "radio" && el.type !== "checkbox";
-const deiCampi = el => el.matches(`[${Q}],[data-qv],[data-qitem],[data-dt="q"],[data-qn]`);
+const deiCampi = el => el.matches(`[${Q}],[data-qv],[data-qitem],[data-qman],[data-dt="q"],[data-qn]`);
 export function input(el){
   if (el.matches("[data-qfilter]")){ filtroArticoli(el.value); return true; }
   if (deiCampi(el) && testuale(el)){ campo(el); return true; }

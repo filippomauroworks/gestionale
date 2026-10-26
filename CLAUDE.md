@@ -163,6 +163,7 @@ Come nel prototipo.
      - "Lo paga il cliente": fuori dal totale, scritto "200,00 € + IVA, a parte".
 6. **Lista** (solo se si è scelta la lista):
    - articoli per categoria con quantità;
+   - sotto ogni categoria, "Aggiungi a mano": articolo fuori dal foglio con nome, prezzo lavoro (a giornata o a mezza, come la lista) e quantità; conta nel valore del materiale come gli altri;
    - riquadro con valore del materiale, livello calcolato, prezzo nel preventivo e differenza rispetto al valore a pezzi;
    - livello forzabile a mano; scelta "Come kit / A pezzi";
    - "Importa da una lista ATT" in archivio;
@@ -191,6 +192,7 @@ Il pannello laterale mostra i totali per fase, attrezzatura, noleggi, totale ser
    - ricerca; quantità massima pari a quella in inventario, con blocco se superata;
    - nel noleggio solo articoli Noleggiabile = Sì, con prezzo o "incluso" se è 0;
    - per un lavoro anche il noleggio esterno (articolo, fornitore, quantità, chi paga).
+   - sotto ogni categoria, "Aggiungi a mano": un articolo che non è nel foglio, con nome, quantità e (nel noleggio) prezzo al giorno. Si comporta come gli altri, senza massimo d'inventario.
 4. **Totale** (solo noleggio):
    - subtotale = Σ prezzo × quantità × giorni;
    - sconto: fino a 3 giorni nessuno, 4–5 giorni 15%, 6–10 giorni 20%, oltre 10 giorni 25%;
@@ -204,6 +206,7 @@ Il pannello laterale mostra i totali per fase, attrezzatura, noleggi, totale ser
 
 **Scelte fatte nello sviluppo (punto 3)**
 
+- Articoli scritti a mano (`js/manuali.js`): stanno solo nel documento (`manuali` nella bozza e nel JSON, id `MAN-1`, `MAN-2`…, più la voce in `items`), mai nel foglio. Passano dal preventivo alla lista ATT e viceversa con "Importa da una lista ATT".
 - Il cliente si sceglie da un menu a tendina (con 15+ clienti l'elenco a pulsanti del prototipo era troppo lungo); nel noleggio è obbligatorio.
 - "Partire da un preventivo" arriva con il punto 4, quando esistono i preventivi.
 - Trello dall'elenco: le righe si salvano nel JSON della lista alla generazione, così restano uguali anche se il foglio cambia.

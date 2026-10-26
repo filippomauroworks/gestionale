@@ -4,12 +4,12 @@
    chiedendo al server se il file è cambiato, e la copia si rinnova; offline si usa la copia.
    Le richieste verso Google (API, accesso, font) e i CDN non passano di qui. */
 
-const CACHE = "gestionale-v1";
+const CACHE = "gestionale-v2";
 const FILE = [
   "./", "index.html", "privacy.html", "config.js", "manifest.webmanifest", "css/app.css",
   "js/app.js", "js/util.js", "js/google.js", "js/drive.js", "js/dati.js", "js/fogli.js", "js/motore.js", "js/genera.js",
   "js/nomi.js", "js/esempi.js", "js/calcoli.js", "js/anagrafiche.js", "js/registro.js", "js/elenco.js", "js/errori.js",
-  "js/procedura.js", "js/liste.js", "js/preventivi.js", "js/contratti.js", "js/cortesia.js", "js/riapertura.js",
+  "js/procedura.js", "js/liste.js", "js/preventivi.js", "js/contratti.js", "js/cortesia.js", "js/riapertura.js", "js/manuali.js",
   "logo-scuro.png", "logo-chiaro.png", "icone/favicon.svg", "icone/icona-192.png", "icone/icona-512.png",
   "icone/icona-maskable-512.png", "icone/apple-touch-icon.png"
 ];
