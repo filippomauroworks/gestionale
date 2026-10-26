@@ -43,10 +43,13 @@ Otto template, uno per ogni documento che il gestionale genera. Il design è que
 | `{{CLIENTE_RIGA3?}}` | `Referente · email`, se c'è |
 | `{{ETICHETTA_4}}` | L'etichetta del 4% dalle Impostazioni |
 
-## PRV — Preventivo riepilogativo e dettagliato
+## PRV — Preventivo
+
+Un solo template, il Documento Google "PRV — Preventivo dettagliato" (il nome è rimasto quello di prima). File senza suffisso. Il preventivo riepilogativo e il dettagliato con la lista attrezzatura non esistono più (decisione del 26 ottobre 2026).
 
 | Segnaposto | Contenuto |
 |---|---|
+| `{{TIPO_DOC}}` | `PREVENTIVO`, nell'intestazione |
 | `{{VALIDITA}}` | Giorni di validità |
 | `{{TITOLO}}` | Titolo del progetto |
 | `{{DESCRIZIONE?}}` | Breve descrizione per il cliente |
@@ -54,46 +57,16 @@ Otto template, uno per ogni documento che il gestionale genera. Il design è que
 | `{{FASE.NOME}}` | Pre-produzione, Produzione, Post-produzione (solo le fasi con voci) |
 | `{{VOCE.NOME}}`, `{{VOCE.DESCRIZIONE}}` | Nome e descrizione per il cliente, dal foglio Servizi |
 | `{{VOCE.RIF}}` | Numero della nota a piè di pagina, vuoto se non c'è |
-| `{{VOCE.DETTAGLIO}}` | Solo riepilogativo: `2 giornate, 2 persone` · `Inclusa` · `A consuntivo, circa 120,00 €` · `200,00 € + IVA, a parte` |
-| `{{VOCE.QUANTITA}}`, `{{VOCE.PREZZO}}`, `{{VOCE.IMPORTO}}` | Solo dettagliato: `2 giornate × 2` · `300,00 €` · `1.200,00 €`. Forfait e spese esterne: quantità `forfait`, prezzo vuoto |
-| `{{NOTA.RIF}}`, `{{NOTA.TESTO}}` | Note a piè di pagina numerate |
+| `{{VOCE.QUANTITA}}`, `{{VOCE.PREZZO}}`, `{{VOCE.IMPORTO}}` | `2 giornate × 2` · `300,00 €` · `1.200,00 €`. Forfait e spese esterne: quantità `forfait`, prezzo vuoto |
 | `{{CONDIZIONE}}` | Una riga per condizione: acconto, revisioni, consegna, validità, note generali |
 | `{{DICITURA_ESCLUSI?}}` | Frase su voci a consuntivo e noleggi pagati dal cliente |
-| `{{TOTALE}}` | Totale al cliente |
-| `{{DICITURA_TOTALE}}` | Solo riepilogativo: `Comprensivo di rivalsa INPS 4% e imposta di bollo.` |
-| `{{TOT_SERVIZI}}`, `{{RIVALSA}}`, `{{BOLLO?}}`, `{{ARROTONDAMENTO?}}` | Solo dettagliato. L'arrotondamento ha il segno: `−7,20 €` |
+| `{{TOT_SERVIZI}}`, `{{RIVALSA}}`, `{{BOLLO?}}`, `{{ARROTONDAMENTO?}}`, `{{TOTALE}}` | Totali. L'arrotondamento ha il segno: `−7,20 €` |
+| `{{#CON_NOTE}}` … `{{/CON_NOTE}}` | Blocco delle note a piè di pagina; sparisce se non ce ne sono |
+| `{{NOTA.RIF}}`, `{{NOTA.TESTO}}` | Note a piè di pagina numerate, un paragrafo per nota |
 
 Kit e noleggi compaiono come voci di Produzione: `Attrezzatura tecnica, Kit Completo`, `Noleggio drone, da Rental X`. La riga dell'attrezzatura ha come `{{VOCE.DESCRIZIONE}}` la nota "Cosa include" scritta nella procedura (es. `1 camera, ottiche fisse, kit luci`).
 
-**Quale si genera.** Si usa solo il template **dettagliato**. Il preventivo standard ha i prezzi di ogni servizio e la riga del kit con la nota, senza la pagina della lista; file senza suffisso. Il preventivo **dettagliato** è facoltativo: uguale, con in più la pagina "Lista attrezzatura"; suffisso `_Dettaglio`. Il template **riepilogativo** non si usa più.
-
-`{{TIPO_DOC}}` vale `PREVENTIVO` o `PREVENTIVO DETTAGLIATO`: va messo nell'intestazione al posto della scritta fissa "PREVENTIVO DETTAGLIATO".
-
-### Pagina "Lista attrezzatura" (solo nel dettagliato)
-
-Compare in fondo solo nel preventivo dettagliato, che si può generare quando l'attrezzatura è compilata come lista. Nel preventivo standard il blocco sparisce tutto, interruzione di pagina compresa.
-
-| Segnaposto | Contenuto |
-|---|---|
-| `{{#LISTA}}` … `{{/LISTA}}` | Blocco della pagina |
-| `{{LISTA_INFO}}` | `Prezzi per giornata, per 2 giornate.` |
-| `{{CAT.NOME}}` | Categoria, nell'ordine del foglio |
-| `{{ART.NOME}}`, `{{ART.QTA}}` | Articolo e quantità |
-| `{{ART.PREZZO}}` | Prezzo lavoro al giorno (o a mezza giornata); `incluso` se è 0 |
-| `{{ART.IMPORTO}}` | Prezzo × quantità × giorni; vuoto se incluso |
-| `{{LISTA_VALORE}}` | Somma degli importi: il valore a pezzi |
-| `{{LISTA_APPLICATO}}`, `{{LISTA_PREZZO}}` | `Nel preventivo: Kit Completo, 2 giornate` e `500,00 €` |
-
-**Come aggiungerla nel Documento Google del dettagliato**, in fondo, dopo la tabella delle note e dei totali:
-
-1. Un paragrafo con `{{#LISTA}}`.
-2. Inserisci → Interruzione → Interruzione di pagina.
-3. Un titolo `Lista attrezzatura`, con lo stile del titolo del progetto, e sotto un paragrafo `{{LISTA_INFO}}`.
-4. Copia la tabella delle voci (VOCE · QUANTITÀ · PREZZO · IMPORTO) e incollala qui. Nell'intestazione scrivi `ARTICOLO · QUANTITÀ · € / GIORNO · IMPORTO`. Nella riga della fase sostituisci `{{FASE.NOME}}` con `{{CAT.NOME}}`. Nella riga della voce metti `{{ART.NOME}}` al posto di nome, numero di nota e descrizione (cancella la seconda riga della cella), poi `{{ART.QTA}}`, `{{ART.PREZZO}}`, `{{ART.IMPORTO}}`.
-5. Sotto la tabella due righe con la tabulazione a destra, come i totali: `Valore del materiale a pezzi` ⇥ `{{LISTA_VALORE}}` e `{{LISTA_APPLICATO}}` ⇥ `{{LISTA_PREZZO}}`.
-6. Un ultimo paragrafo con `{{/LISTA}}`.
-
-Poi in Impostazioni "Prova i template" controlla che non restino segnaposto.
+**Disposizione in fondo.** Dopo la tabella delle voci, una tabella a due colonne: a sinistra `CONDIZIONI` (condizioni, dicitura degli esclusi, frase sull'IVA), a destra i totali. Sotto, a tutta larghezza, il blocco `NOTE` con le note numerate: così le note lunghe non allungano la colonna delle condizioni.
 
 ## ATT — Lista attrezzatura lavoro
 

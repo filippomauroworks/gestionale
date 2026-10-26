@@ -67,7 +67,7 @@ Tutti i prezzi nei fogli sono al netto della rivalsa del 4% e del bollo.
 
 | Cartella | Contenuto |
 |---|---|
-| Archivio preventivi | Preventivi riepilogativi e dettagliati |
+| Archivio preventivi | Preventivi |
 | Archivio contratti | Contratti |
 | Archivio liste attrezzatura | Liste ATT |
 | Archivio copie di cortesia | Copie di cortesia |
@@ -82,7 +82,7 @@ In ogni archivio l'app crea una sottocartella per cliente chiamata `CLI-001 – 
 - **Progetto**: titolo in CamelCase senza accenti, tagliato a 32 caratteri.
 - **Cliente**: ragione sociale in CamelCase senza srl, srls, sas, spa, snc (anche con i punti, es. S.r.l.) e senza s.b., società benefit, ssdrl, ssd, asd, aps, sapa, ets, onlus, odv; le parole tutte maiuscole diventano "Parola" (`SALA GIOCHI S.r.l.` → `SalaGiochi`, `GAM Medical srls` → `GamMedical`); `Personale` se manca. Il titolo invece resta com'è scritto (`ADHD` resta `ADHD`).
 - **Stesso codice**: una lista ATT o un contratto creati da un preventivo prendono lo stesso codice del preventivo. Il tipo distingue i documenti. Un contratto nato da zero prende un codice nuovo.
-- **Preventivo**: il file standard ha i prezzi di ogni servizio e, per l'attrezzatura, solo la riga del kit con la nota scritta a mano; nessun suffisso. Il **preventivo dettagliato** è facoltativo: uguale, con in più la pagina finale "Lista attrezzatura"; stesso codice e stessa versione, suffisso `_Dettaglio` prima della versione. Tutti e due usano il template "PRV — Preventivo dettagliato"; il vecchio template riepilogativo (senza prezzi) non si usa più.
+- **Preventivo**: uno solo, senza suffisso: i prezzi di ogni servizio e, per l'attrezzatura, solo la riga del kit con la nota scritta a mano. Usa il template "PRV — Preventivo dettagliato" (il nome del Doc è rimasto quello). Il riepilogativo senza prezzi e il dettagliato con la lista attrezzatura (`_Dettaglio`) sono stati tolti il 26 ottobre 2026; i vecchi file `_Dettaglio` restano su Drive e "Carica PDF" li riconosce ancora.
 - **Copie di cortesia**: `FT-2026-038_CDC_Cliente_FilippoMauro[_Vxx]`, usando il numero di fattura di Fiscozen.
 
 ### Versioni
@@ -98,7 +98,7 @@ In ogni archivio l'app crea una sottocartella per cliente chiamata `CLI-001 – 
 - Se si apre una versione vecchia, avvisa che ne esiste una più recente.
 - Copie di cortesia: "Nuova versione" su una copia in archivio, poi si carica il PDF corretto. Viene letto da zero e salvato come versione successiva. Se il numero letto è diverso, avvisa ma salva comunque come versione della copia scelta. Un PDF con un numero di fattura già in archivio diventa sempre la versione successiva.
 
-**Come funziona** (`js/riapertura.js`): "Modifica" c'è su ogni riga e su ogni versione dell'elenco (liste, preventivi, contratti). Riapre la procedura con i dati salvati di quella versione, compresi titolo e cliente di allora, con tutti i passi già visitati e l'avviso in alto; il tasto finale diventa "Salva nuova versione". Il codice resta, la versione è il numero più alto in archivio + 1. Un preventivo riaperto conserva lo stato; dettagliato e lista ATT generati insieme prendono la loro versione successiva. "Carica PDF" accetta anche i nomi con " (1)" dei file scaricati due volte. Le copie di cortesia non hanno "Modifica": si usa "Nuova versione" e si carica il PDF corretto.
+**Come funziona** (`js/riapertura.js`): "Modifica" c'è su ogni riga e su ogni versione dell'elenco (liste, preventivi, contratti). Riapre la procedura con i dati salvati di quella versione, compresi titolo e cliente di allora, con tutti i passi già visitati e l'avviso in alto; il tasto finale diventa "Salva nuova versione". Il codice resta, la versione è il numero più alto in archivio + 1. Un preventivo riaperto conserva lo stato; la lista ATT generata insieme prende la sua versione successiva. "Carica PDF" accetta anche i nomi con " (1)" dei file scaricati due volte. Le copie di cortesia non hanno "Modifica": si usa "Nuova versione" e si carica il PDF corretto.
 
 ### Generazione dei documenti
 
@@ -173,9 +173,11 @@ Come nel prototipo.
    - arrotondamento con segno, in su o in giù, e avviso oltre il 15%;
    - compenso per Fiscozen;
    - sezione "Spese a consuntivo": per ogni voce, "Fattura diretta al cliente" oppure "Anticipo io, +26%". Nel secondo caso la stima nel preventivo include la maggiorazione.
-10. **Riepilogo**: anteprima del preventivo con quantità e importi e note numerate, interruttore "Genera anche il preventivo dettagliato" (solo con una lista), cartella e nomi dei file.
+10. **Riepilogo**: anteprima del preventivo con quantità e importi e note numerate, cartella e nomi dei file.
 
-Nel passo Attrezzatura c'è anche "Cosa include, per il cliente" (es. `1 camera, ottiche fisse, kit luci`), che va sotto la voce del kit. Il preventivo dettagliato ha in fondo una pagina "Lista attrezzatura" con i pezzi, i loro costi, il valore a pezzi e il prezzo applicato (vedi la Guida ai template).
+Nel passo Attrezzatura c'è anche "Cosa include, per il cliente" (es. `1 camera, ottiche fisse, kit luci`), che va sotto la voce del kit.
+
+In fondo al preventivo: tabella a due colonne con CONDIZIONI a sinistra e totali a destra, poi le note a piè di pagina numerate a tutta larghezza (vedi la Guida ai template).
 
 Il pannello laterale mostra i totali per fase, attrezzatura, noleggi, totale servizi, rivalsa, bollo, arrotondamento, totale, voci fuori dal totale e compenso Fiscozen.
 
@@ -235,7 +237,7 @@ Il pannello laterale mostra i totali per fase, attrezzatura, noleggi, totale ser
 - Nel preventivo, in Produzione: prima le voci, poi l'attrezzatura (kit), poi i noleggi esterni.
 - Il prezzo di una voce può essere 0 (es. Fisso a 0); l'importo di un Forfait no.
 - La lista ATT nata dal preventivo usa il template della lista lavoro e lo stesso codice; i noleggi esterni del preventivo diventano righe di noleggio con chi paga.
-- Stato del preventivo e file del dettagliato stanno nel registro (`stato`, e `docDett`/`pdfDett`/`nomeDett` nella versione).
+- Lo stato del preventivo sta nel registro (`stato`). Le versioni vecchie possono avere `docDett`/`pdfDett`/`nomeDett` del dettagliato tolto: si ignorano.
 - Se la generazione si interrompe a metà, la copia del template già creata va nel cestino.
 - Motore: nelle righe ripetute, un paragrafo fatto solo di segnaposto che restano vuoti non si scrive (es. la descrizione mancante); paragrafi facoltativi vuoti consecutivi si tolgono insieme.
 
@@ -309,7 +311,7 @@ Il motore va scritto una volta sola come modulo generico, sopra l'API di Google 
 - Google elenca una cella per colonna anche nelle celle unite (le coperte hanno span 1): la colonna è la posizione nella riga.
 - Lo stile di paragrafo va applicato prima di quello del testo: cambiare lo stile con nome azzera la formattazione del testo.
 - Tabulazioni: i `.docx` avevano il carattere tab scritto come testo (`\t` dentro `<w:t>`) invece di `<w:tab/>`, e la conversione di Google l'ha scartato tenendo però gli arresti di tabulazione. Il 25 ottobre 2026 i 28 tab mancanti sono stati reinseriti via API nei Documenti Google (copia di sicurezza in "Gestionale FM — dati / Backup template"). Se un template si riconverte dal `.docx`, il problema torna. Gli arresti di tabulazione non si impostano via API, ma le righe copiate dal motore li conservano.
-- In Impostazioni, "Prova i template" genera 12 prove (8 template e 4 varianti, tra cui il preventivo con e senza pagina della lista) nella cartella "Prove template" dei dati dell'app e segnala segnaposto rimasti e link mancanti.
+- In Impostazioni, "Prova i template" genera 11 prove (7 template collegati e 4 varianti, tra cui il preventivo con e senza note a piè di pagina) nella cartella "Prove template" dei dati dell'app e segnala segnaposto rimasti e link mancanti.
 
 **Link**: nei template logo e nome hanno il link a `https://filippomauro.com`. Va verificato che sopravviva nel PDF esportato da Google.
 

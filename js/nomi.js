@@ -1,5 +1,5 @@
 /* ---------- Nomi dei file e delle cartelle ----------
-   CODICE_TIPO_Progetto_Cliente_FilippoMauro[_Dettaglio][_Vxx]
+   CODICE_TIPO_Progetto_Cliente_FilippoMauro[_Vxx]
    es. 2026-016_CTR_VideocorsoADHD_GamMedical_FilippoMauro_V02 */
 
 const pad2 = n => String(n).padStart(2, "0");
@@ -19,9 +19,8 @@ export const slugCliente = nome => {
   return slug(pulito) || "Personale";
 };
 
-// dettaglio: il preventivo dettagliato facoltativo, con la lista attrezzatura.
-export function nomeFile({codice, tipo, titolo, cliente, versione = 1, dettaglio = false}){
-  return `${codice}_${tipo}_${slug(titolo).slice(0, 32)}_${slugCliente(cliente)}_FilippoMauro${dettaglio ? "_Dettaglio" : ""}${versione > 1 ? "_V" + pad2(versione) : ""}`;
+export function nomeFile({codice, tipo, titolo, cliente, versione = 1}){
+  return `${codice}_${tipo}_${slug(titolo).slice(0, 32)}_${slugCliente(cliente)}_FilippoMauro${versione > 1 ? "_V" + pad2(versione) : ""}`;
 }
 
 // Copia di cortesia: numero di fattura "38/2026" → FT-2026-038_CDC_Cliente_FilippoMauro[_Vxx]

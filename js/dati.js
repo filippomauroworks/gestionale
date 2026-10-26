@@ -20,7 +20,7 @@ export const COLLEGAMENTI = [
     {k: "archivioCortesia", tipo: "cartella", nome: "Archivio copie di cortesia"}
   ]},
   {gruppo: "Template", voci: [
-    {k: "tplPrvDettagliato", tipo: "documento", nome: "PRV — Preventivo dettagliato", det: "Per il preventivo e per il dettagliato con la lista attrezzatura"},
+    {k: "tplPrvDettagliato", tipo: "documento", nome: "PRV — Preventivo"},
     {k: "tplAttLavoro", tipo: "documento", nome: "ATT — Lista attrezzatura lavoro"},
     {k: "tplAttNoleggio", tipo: "documento", nome: "ATT — Noleggio a terzi"},
     {k: "tplCtr", tipo: "documento", nome: "CTR — Contratto"},

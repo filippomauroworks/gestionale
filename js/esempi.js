@@ -29,6 +29,7 @@ const PRV = {
       {NOME: "Montaggio", DESCRIZIONE: "Montaggio, color e mix audio", RIF: "2", DETTAGLIO: "3 giornate", QUANTITA: "3 giornate", PREZZO: "280,00 €", IMPORTO: "840,00 €"}
     ]}
   ],
+  CON_NOTE: true,
   NOTA: [
     {RIF: "1", TESTO: "Giornata di 8 ore, pausa pranzo esclusa."},
     {RIF: "2", TESTO: "Il servizio comprende montaggio, musiche, scritte, color correction e color grading."}
@@ -37,17 +38,7 @@ const PRV = {
   DICITURA_ESCLUSI: "Il noleggio del drone è fatturato direttamente da Rental X e non è compreso nel totale.",
   TOT_SERVIZI: "2.540,00 €", RIVALSA: "101,60 €", BOLLO: "2,00 €", ARROTONDAMENTO: "−3,60 €",
   TOTALE: "2.640,00 €",
-  DICITURA_TOTALE: "Comprensivo di rivalsa INPS 4% e imposta di bollo.",
-  // Pagina "Lista attrezzatura" (solo nel dettagliato)
-  LISTA: true,
-  CAT: [
-    {NOME: "Camere", ART: [{NOME: "Sony FX3", QTA: "1", PREZZO: "80,00 €", IMPORTO: "160,00 €"}]},
-    {NOME: "Alimentazione", ART: [{NOME: "Batteria NP-FZ100", QTA: "4", PREZZO: "incluso", IMPORTO: ""}]}
-  ],
-  LISTA_INFO: "Prezzi per giornata, per 2 giornate.",
-  LISTA_VALORE: "160,00 €",
-  LISTA_APPLICATO: "Nel preventivo: Kit Completo, 2 giornate",
-  LISTA_PREZZO: "500,00 €"
+  DICITURA_TOTALE: "Comprensivo di rivalsa INPS 4% e imposta di bollo."
 };
 
 const ARTICOLI = [
@@ -110,8 +101,9 @@ const LISTINO = {
 
 /* Le prove: k è la chiave del template nelle Impostazioni. */
 export const PROVE = [
-  {k: "tplPrvDettagliato", nome: "Preventivo", dati: {...PRV, LISTA: false, CAT: []}},
-  {k: "tplPrvDettagliato", nome: "Preventivo dettagliato, con la lista attrezzatura", dati: {...PRV, TIPO_DOC: "PREVENTIVO DETTAGLIATO"}},
+  {k: "tplPrvDettagliato", nome: "Preventivo, con note a piè di pagina", dati: PRV},
+  {k: "tplPrvDettagliato", nome: "Preventivo, senza note", dati: {...PRV, CON_NOTE: false, NOTA: [],
+    FASE: PRV.FASE.map(f => ({...f, VOCE: f.VOCE.map(v => ({...v, RIF: ""}))}))}},
   {k: "tplAttLavoro", nome: "Lista lavoro, con noleggi e note", dati: {
     ...CLIENTE, TITOLO: "Convention di fine anno", INFO_LAVORO: "12 dicembre 2026 · Torino",
     CAT: ARTICOLI, NOLEGGI: true,
