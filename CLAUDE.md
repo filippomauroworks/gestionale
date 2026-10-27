@@ -155,7 +155,7 @@ Come nel prototipo.
    - Le voci a giornata di Produzione partono dal numero di date di ripresa.
 5. **Attrezzatura**:
    - **Lista**: livello calcolato dal valore.
-   - **Livello a mano**.
+   - **Livello a mano**: uno dei kit del foglio, oppure "Kit scritto a mano" con nome (come lo vede il cliente) e prezzo a giornata o a mezza, × giorni.
    - **Nessuna**.
    - Durata (giornata intera o mezza) e giorni, che partono dal numero di date.
    - **Noleggio esterno**: righe con cosa, da quale rental e prezzo IVA esclusa.

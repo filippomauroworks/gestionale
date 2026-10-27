@@ -21,7 +21,7 @@ import { numero, centesimi, eur, eurSegno, cifraCampo, qta, totali, fiscozen, og
 const BKEY = "fm-bozza-preventivo-v1";
 const BASE = () => ({step: "cliente", visited: ["cliente"], cli: "", titolo: "", desc: "", date: [{da: "", a: "", intervallo: false}], luogo: "", dataPrev: oggi(), validita: "30",
   voci: {}, nLib: 0,
-  attMode: "lista", attUnit: "g", attGiorni: "", attLivello: "", items: {}, manuali: {}, nMan: 0, override: "auto", listaMode: "kit", tetto: "top", tettoPrezzo: "", genAtt: true,
+  attMode: "lista", attUnit: "g", attGiorni: "", attLivello: "", kitNome: "", kitPrezzo: "", items: {}, manuali: {}, nMan: 0, override: "auto", listaMode: "kit", tetto: "top", tettoPrezzo: "", genAtt: true,
   noleggi: [], accontoOn: false, accontoPerc: "30", revOn: false, revN: "2", consOn: false, consGiorni: "10", accettOn: false, note: "",
   attNota: "", cifra: "", noRound: true, edit: null, saved: null});
 let b = store.get(BKEY, null);
@@ -89,6 +89,7 @@ function importoVoce(v){
 const giorniAtt = () => numero(b.attGiorni !== "" ? b.attGiorni : giorniDefault()) || 0;
 const sogliaKit = k => b.attUnit === "m" ? k.sogliaMezza : k.soglia;
 const prezzoKit = k => b.attUnit === "m" ? k.prezzoMezza : k.prezzo;
+const KIT_MANO = "__mano";   // valore di attLivello per il kit scritto a mano (nome e prezzo nella bozza)
 const prezzoPezzo = a => b.attUnit === "m" ? (a.lavoroMezza ?? a.lavoro ?? 0) : (a.lavoro ?? 0);
 const valoreLista = () => Object.entries(b.items).reduce((s, [id, x]) => { const a = articolo(id); return a ? s + (numero(x.qta) || 0) * prezzoPezzo(a) : s; }, 0);
 
@@ -96,6 +97,10 @@ const valoreLista = () => Object.entries(b.items).reduce((s, [id, x]) => { const
 function attrezzatura(){
   const g = giorniAtt(), kit = kitUsabili(), alto = kit[kit.length - 1];
   if (b.attMode === "none") return {on: false, totale: 0};
+  if (b.attMode === "livello" && b.attLivello === KIT_MANO){
+    const al = centesimi(b.kitPrezzo) || 0, nome = b.kitNome.trim() || "Kit";
+    return {on: true, mano: true, alGiorno: al, g, totale: al * g, etichetta: nome, cliente: nome};
+  }
   if (b.attMode === "livello"){
     const k = kit.find(x => x.nome === b.attLivello) || kit[0];
     if (!k) return {on: false, totale: 0};
@@ -475,6 +480,11 @@ function passoHTML(){
         <label class="f"><span>Giorni</span><input class="inp num" type="number" min="1" ${Q}="attGiorni" value="${esc(b.attGiorni !== "" ? b.attGiorni : String(giorniDefault()))}"><div class="cnt">Di default uguali al numero di date di ripresa.</div></label>
         <label class="f"><span>Cosa include, per il cliente (facoltativo)</span><input class="inp" ${Q}="attNota" value="${esc(b.attNota)}" placeholder="Es. 1 camera, ottiche fisse, kit luci" style="max-width:600px"><div class="cnt">Compare sotto la voce dell’attrezzatura nel preventivo.</div></label>
         ${b.attMode === "livello" ? (kitUsabili().map(k => opzione(Q, "attLivello", k.nome, b.attLivello, "Kit " + esc(k.nome), `${eur(prezzoKit(k))} a ${u}${sogliaKit(k) !== null ? `, materiale fino a ${eur(sogliaKit(k))}` : ""}`)).join("") || `<div class="note warn">Nel foglio Kit non ci sono livelli attivi con un prezzo a ${u}.</div>`)
+            + opzione(Q, "attLivello", KIT_MANO, b.attLivello, "Kit scritto a mano", "Nome e prezzo li scrivi tu")
+            + (b.attLivello === KIT_MANO ? `<div class="sub">
+              <label class="f"><span>Nome, come lo vede il cliente</span><input class="inp" ${Q}="kitNome" value="${esc(b.kitNome)}" placeholder="Es. Kit intervista" style="max-width:420px"><div class="cnt">Nel preventivo compare come “Attrezzatura tecnica, ” seguito da questo nome.</div></label>
+              <label class="f"><span>Prezzo a ${u} (€)</span><input class="inp num" inputmode="decimal" ${Q}="kitPrezzo" value="${esc(b.kitPrezzo)}" placeholder="0,00"><div class="cnt">Al netto di rivalsa e bollo, come i prezzi del foglio; si moltiplica per i giorni.</div></label>
+            </div>` : "")
           : `<div class="note">La lista la compili al passo successivo.</div>`}
       </div>` : ""}
       ${noleggiHTML()}`;
@@ -567,7 +577,10 @@ function valida(id){
   }
   if (id === "att"){
     if (b.attMode !== "none" && !(giorniAtt() > 0)) return "Indica per quanti giorni serve l’attrezzatura.";
-    if (b.attMode === "livello" && !kitUsabili().length) return "Nel foglio Kit non ci sono livelli: scegli la lista o nessuna attrezzatura.";
+    if (b.attMode === "livello" && b.attLivello === KIT_MANO){
+      if (!b.kitNome.trim()) return "Kit scritto a mano: scrivi il nome.";
+      if (!(centesimi(b.kitPrezzo) > 0)) return "Kit scritto a mano: scrivi il prezzo.";
+    } else if (b.attMode === "livello" && !kitUsabili().length) return "Nel foglio Kit non ci sono livelli: scegli il kit scritto a mano, la lista o nessuna attrezzatura.";
     for (const n of b.noleggi){
       if (!n.desc.trim()) return "Noleggio esterno: scrivi cosa e da quale noleggio.";
       if (!(centesimi(n.prezzo) > 0)) return `Noleggio esterno (${n.desc.trim()}): scrivi il prezzo IVA esclusa.`;
