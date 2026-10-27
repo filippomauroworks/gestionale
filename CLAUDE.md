@@ -168,7 +168,7 @@ Come nel prototipo.
    - livello forzabile a mano; scelta "Come kit / A pezzi";
    - "Importa da una lista ATT" in archivio;
    - interruttore "Genera anche la lista ATT".
-8. **Condizioni**, tutte facoltative e spente: acconto (%), revisioni incluse, tempi di consegna (giorni lavorativi), note generali.
+8. **Condizioni**, tutte facoltative e spente: acconto (%), revisioni incluse, tempi di consegna (giorni lavorativi), note generali, "Accettazione con firma" (in fondo la clausola di accettazione e gli spazi per luogo, data e firme del cliente e di Filippo: il preventivo firmato vale come accordo di inizio lavori).
 9. **Totale**:
    - cifra finale desiderata, oppure "Nessun arrotondamento";
    - arrotondamento con segno, in su o in giù, e avviso oltre il 15%;
@@ -178,7 +178,7 @@ Come nel prototipo.
 
 Nel passo Attrezzatura c'è anche "Cosa include, per il cliente" (es. `1 camera, ottiche fisse, kit luci`), che va sotto la voce del kit.
 
-In fondo al preventivo: tabella a due colonne con CONDIZIONI a sinistra e totali a destra, poi le note a piè di pagina numerate a tutta larghezza (vedi la Guida ai template).
+In fondo al preventivo: tabella a due colonne con CONDIZIONI a sinistra e totali a destra, poi le note a piè di pagina numerate a tutta larghezza e, se attiva, l'accettazione con le firme (vedi la Guida ai template).
 
 Il pannello laterale mostra i totali per fase, attrezzatura, noleggi, totale servizi, rivalsa, bollo, arrotondamento, totale, voci fuori dal totale e compenso Fiscozen.
 
@@ -314,7 +314,7 @@ Il motore va scritto una volta sola come modulo generico, sopra l'API di Google 
 - Google elenca una cella per colonna anche nelle celle unite (le coperte hanno span 1): la colonna è la posizione nella riga.
 - Lo stile di paragrafo va applicato prima di quello del testo: cambiare lo stile con nome azzera la formattazione del testo.
 - Tabulazioni: i `.docx` avevano il carattere tab scritto come testo (`\t` dentro `<w:t>`) invece di `<w:tab/>`, e la conversione di Google l'ha scartato tenendo però gli arresti di tabulazione. Il 25 ottobre 2026 i 28 tab mancanti sono stati reinseriti via API nei Documenti Google (copia di sicurezza in "Gestionale FM — dati / Backup template"). Se un template si riconverte dal `.docx`, il problema torna. Gli arresti di tabulazione non si impostano via API, ma le righe copiate dal motore li conservano.
-- In Impostazioni, "Prova i template" genera 11 prove (7 template collegati e 4 varianti, tra cui il preventivo con e senza note a piè di pagina) nella cartella "Prove template" dei dati dell'app e segnala segnaposto rimasti e link mancanti.
+- In Impostazioni, "Prova i template" genera 11 prove (7 template collegati e 4 varianti, tra cui il preventivo con note e accettazione e quello senza) nella cartella "Prove template" dei dati dell'app e segnala segnaposto rimasti e link mancanti.
 
 **Link**: nei template logo e nome hanno il link a `https://filippomauro.com`. Va verificato che sopravviva nel PDF esportato da Google.
 

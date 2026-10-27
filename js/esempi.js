@@ -101,8 +101,8 @@ const LISTINO = {
 
 /* Le prove: k è la chiave del template nelle Impostazioni. */
 export const PROVE = [
-  {k: "tplPrvDettagliato", nome: "Preventivo, con note a piè di pagina", dati: PRV},
-  {k: "tplPrvDettagliato", nome: "Preventivo, senza note", dati: {...PRV, CON_NOTE: false, NOTA: [],
+  {k: "tplPrvDettagliato", nome: "Preventivo, con note e accettazione con firma", dati: {...PRV, ACCETTAZIONE: true}},
+  {k: "tplPrvDettagliato", nome: "Preventivo, senza note né accettazione", dati: {...PRV, ACCETTAZIONE: false, CON_NOTE: false, NOTA: [],
     FASE: PRV.FASE.map(f => ({...f, VOCE: f.VOCE.map(v => ({...v, RIF: ""}))}))}},
   {k: "tplAttLavoro", nome: "Lista lavoro, con noleggi e note", dati: {
     ...CLIENTE, TITOLO: "Convention di fine anno", INFO_LAVORO: "12 dicembre 2026 · Torino",

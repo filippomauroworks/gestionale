@@ -22,7 +22,7 @@ const BKEY = "fm-bozza-preventivo-v1";
 const BASE = () => ({step: "cliente", visited: ["cliente"], cli: "", titolo: "", desc: "", date: [{da: "", a: "", intervallo: false}], luogo: "", dataPrev: oggi(), validita: "30",
   voci: {}, nLib: 0,
   attMode: "lista", attUnit: "g", attGiorni: "", attLivello: "", items: {}, manuali: {}, nMan: 0, override: "auto", listaMode: "kit", tetto: "top", tettoPrezzo: "", genAtt: true,
-  noleggi: [], accontoOn: false, accontoPerc: "30", revOn: false, revN: "2", consOn: false, consGiorni: "10", note: "",
+  noleggi: [], accontoOn: false, accontoPerc: "30", revOn: false, revN: "2", consOn: false, consGiorni: "10", accettOn: false, note: "",
   attNota: "", cifra: "", noRound: true, edit: null, saved: null});
 let b = store.get(BKEY, null);
 if (b) b = Object.assign(BASE(), b);
@@ -398,12 +398,13 @@ function anteprima(){
     <div class="ptot">Totale ${eur(t.voluto)}</div>
     <div class="cnt">${esc(diciturTotale(t))}${esclusi ? " " + esc(esclusi) : ""}</div>
     <div class="pnote">${condizioni().map(esc).join("<br>")}</div>
-    ${note.length ? `<div class="pnote">${note.map((n, i) => `<sup>${i + 1}</sup> ${esc(n)}`).join("<br>")}</div>` : ""}`;
+    ${note.length ? `<div class="pnote">${note.map((n, i) => `<sup>${i + 1}</sup> ${esc(n)}`).join("<br>")}</div>` : ""}
+    ${b.accettOn ? `<div class="pnote"><strong>Accettazione</strong>: clausola e spazi per luogo, data e firme in fondo al preventivo.</div>` : ""}`;
 }
 
 function riepilogo(){
   const c = cliente(), trattino = `<span class="muted">–</span>`, date = elencoDate(b.date), a = attrezzatura();
-  const cond = [b.accontoOn && `acconto ${esc(b.accontoPerc)}%`, b.revOn && `${esc(b.revN)} revisioni`, b.consOn && `consegna in ${esc(b.consGiorni)} gg lav.`].filter(Boolean);
+  const cond = [b.accontoOn && `acconto ${esc(b.accontoPerc)}%`, b.revOn && `${esc(b.revN)} revisioni`, b.consOn && `consegna in ${esc(b.consGiorni)} gg lav.`, b.accettOn && "accettazione con firma"].filter(Boolean);
   const n = Object.values(b.voci).filter(v => v.on).length;
   return `<dl class="sum">
     <dt>Cliente</dt><dd>${c ? esc(c.nome) : trattino}</dd>
@@ -508,7 +509,8 @@ function passoHTML(){
       ${b.revOn ? `<div class="sub"><label class="f"><span>Numero di revisioni</span><input class="inp num" type="number" min="0" ${Q}="revN" value="${esc(b.revN)}"></label></div>` : ""}
       ${interruttore(Q, "consOn", b.consOn, "Tempi di consegna", "Stima in giorni lavorativi dalle riprese")}
       ${b.consOn ? `<div class="sub"><label class="f"><span>Giorni lavorativi</span><input class="inp num" type="number" min="1" ${Q}="consGiorni" value="${esc(b.consGiorni)}"></label></div>` : ""}
-      <label class="f" style="margin-top:20px"><span>Note generali (facoltative)</span><textarea class="inp" ${Q}="note" placeholder="Es. Eventuali permessi di ripresa sono a carico del cliente.">${esc(b.note)}</textarea></label>`;
+      <label class="f" style="margin-top:20px"><span>Note generali (facoltative)</span><textarea class="inp" ${Q}="note" placeholder="Es. Eventuali permessi di ripresa sono a carico del cliente.">${esc(b.note)}</textarea></label>
+      <div style="margin-top:20px">${interruttore(Q, "accettOn", b.accettOn, "Accettazione con firma", "In fondo la clausola di accettazione e gli spazi per luogo, data e firme: il preventivo firmato vale come accordo di inizio lavori")}</div>`;
 
     case "totale": return `<h2 class="field-q">Totale</h2><p class="hint">Scrivi la cifra che comunicherai al cliente: l’app calcola l’arrotondamento e il compenso da inserire su Fiscozen.</p>
       ${interruttore(Q, "noRound", b.noRound, "Nessun arrotondamento", "Il totale resta quello calcolato")}
@@ -693,7 +695,7 @@ function datiTemplate(codice){
   const info = [elencoDate(b.date) && "Riprese: " + elencoDate(b.date), b.luogo.trim()].filter(Boolean).join(" · ");
   return {TIPO_DOC: "PREVENTIVO", NUMERO: codice, DATA: dataLunga(b.dataPrev), VALIDITA: String(b.validita), ETICHETTA_4: stato.impostazioni.etichetta4, ...righeCliente(c),
     TITOLO: b.titolo.trim(), DESCRIZIONE: b.desc.trim(), INFO_LAVORO: info,
-    FASE: fasi, CON_NOTE: note.length > 0, NOTA: note.map((n, i) => ({RIF: String(i + 1), TESTO: n})), CONDIZIONE: condizioni(),
+    FASE: fasi, CON_NOTE: note.length > 0, ACCETTAZIONE: !!b.accettOn, NOTA: note.map((n, i) => ({RIF: String(i + 1), TESTO: n})), CONDIZIONE: condizioni(),
     DICITURA_ESCLUSI: diciturEsclusi(), TOTALE: eur(t.voluto), DICITURA_TOTALE: diciturTotale(t),
     TOT_SERVIZI: eur(t.servizi), RIVALSA: eur(t.riv), BOLLO: t.bollo ? eur(t.bollo) : "", ARROTONDAMENTO: t.arr ? eurSegno(t.arr) : ""};
 }

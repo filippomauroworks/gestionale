@@ -63,10 +63,11 @@ Un solo template, il Documento Google "PRV — Preventivo dettagliato" (il nome 
 | `{{TOT_SERVIZI}}`, `{{RIVALSA}}`, `{{BOLLO?}}`, `{{ARROTONDAMENTO?}}`, `{{TOTALE}}` | Totali. L'arrotondamento ha il segno: `−7,20 €` |
 | `{{#CON_NOTE}}` … `{{/CON_NOTE}}` | Blocco delle note a piè di pagina; sparisce se non ce ne sono |
 | `{{NOTA.RIF}}`, `{{NOTA.TESTO}}` | Note a piè di pagina numerate, un paragrafo per nota |
+| `{{#ACCETTAZIONE}}` … `{{/ACCETTAZIONE}}` | Blocco finale facoltativo (interruttore "Accettazione con firma" nel passo Condizioni): titolo `ACCETTAZIONE`, la clausola scritta nel Doc e la tabella delle firme (a sinistra il cliente con `{{CLIENTE_NOME}}`, luogo e data, firma; a destra Filippo Mauro, firma) |
 
 Kit e noleggi compaiono come voci di Produzione: `Attrezzatura tecnica, Kit Completo`, `Noleggio drone, da Rental X`. La riga dell'attrezzatura ha come `{{VOCE.DESCRIZIONE}}` la nota "Cosa include" scritta nella procedura (es. `1 camera, ottiche fisse, kit luci`).
 
-**Disposizione in fondo.** Dopo la tabella delle voci, una tabella a due colonne: a sinistra `CONDIZIONI` (condizioni, dicitura degli esclusi, frase sull'IVA), a destra i totali. Sotto, a tutta larghezza, il blocco `NOTE` con le note numerate: così le note lunghe non allungano la colonna delle condizioni.
+**Disposizione in fondo.** Dopo la tabella delle voci, una tabella a due colonne: a sinistra `CONDIZIONI` (condizioni, dicitura degli esclusi, frase sull'IVA), a destra i totali. Sotto, a tutta larghezza, il blocco `NOTE` con le note numerate: così le note lunghe non allungano la colonna delle condizioni. Per ultimo, se attivo, il blocco `ACCETTAZIONE` con le firme. Il testo della clausola sta nel Documento Google, non nel codice: per cambiarlo basta modificarlo lì.
 
 ## ATT — Lista attrezzatura lavoro
 
