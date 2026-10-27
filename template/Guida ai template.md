@@ -40,7 +40,7 @@ Otto template, uno per ogni documento che il gestionale genera. Il design è que
 | `{{CLIENTE_NOME}}` | Ragione sociale o nome |
 | `{{CLIENTE_RIGA1}}` | `P.IVA …` (aziende) oppure `C.F. …` (privati); il codice SDI non si mette |
 | `{{CLIENTE_RIGA2}}` | `Indirizzo, CAP Comune (PR)` |
-| `{{CLIENTE_RIGA3?}}` | `Referente · email`, se c'è |
+| `{{CLIENTE_RIGA3?}}` | Il referente, se c'è. Nei documenti niente email, telefono né codice SDI, né del cliente né di Filippo: solo dati anagrafici |
 | `{{ETICHETTA_4}}` | L'etichetta del 4% dalle Impostazioni |
 
 ## PRV — Preventivo

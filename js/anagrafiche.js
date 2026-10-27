@@ -64,7 +64,7 @@ export function righeCliente(c){
     CLIENTE_NOME: c.nome,
     CLIENTE_RIGA1: riga1,
     CLIENTE_RIGA2: unisci([c.indirizzo, luogo.trim()], ", "),
-    CLIENTE_RIGA3: unisci([c.referente, c.email])
+    CLIENTE_RIGA3: String(c.referente ?? "").trim()   // solo il referente: niente email né telefono
   };
 }
 
