@@ -5,7 +5,7 @@
 const CLIENTE = {
   NUMERO: "2026-016", DATA: "25 ottobre 2026",
   CLIENTE_NOME: "Studio Lanterna srl",
-  CLIENTE_RIGA1: "P.IVA 01234567890 · SDI ABC1234",
+  CLIENTE_RIGA1: "P.IVA 01234567890",
   CLIENTE_RIGA2: "Via Roma 1, 10121 Torino (TO)",
   CLIENTE_RIGA3: "Laura Bensi · laura@esempio.it",
   ETICHETTA_4: "Rivalsa INPS 4%"

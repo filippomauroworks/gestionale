@@ -38,7 +38,7 @@ Otto template, uno per ogni documento che il gestionale genera. Il design è que
 | `{{NUMERO}}` | Codice del documento, es. `2026-016` |
 | `{{DATA}}` | Data del documento |
 | `{{CLIENTE_NOME}}` | Ragione sociale o nome |
-| `{{CLIENTE_RIGA1}}` | `P.IVA … · SDI …` (aziende) oppure `C.F. …` (privati) |
+| `{{CLIENTE_RIGA1}}` | `P.IVA …` (aziende) oppure `C.F. …` (privati); il codice SDI non si mette |
 | `{{CLIENTE_RIGA2}}` | `Indirizzo, CAP Comune (PR)` |
 | `{{CLIENTE_RIGA3?}}` | `Referente · email`, se c'è |
 | `{{ETICHETTA_4}}` | L'etichetta del 4% dalle Impostazioni |

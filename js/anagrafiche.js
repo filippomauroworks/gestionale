@@ -58,7 +58,7 @@ export function righeCliente(c){
   const unisci = (l, sep = " · ") => l.map(x => String(x ?? "").trim()).filter(Boolean).join(sep);
   const riga1 = c.tipo === "Privato"
     ? unisci([c.cf && "C.F. " + c.cf])
-    : unisci([c.piva && "P.IVA " + c.piva, c.sdi && "SDI " + c.sdi]);
+    : unisci([c.piva && "P.IVA " + c.piva]);
   const luogo = unisci([c.cap, c.comune], " ") + (String(c.provincia ?? "").trim() ? ` (${String(c.provincia).trim()})` : "");
   return {
     CLIENTE_NOME: c.nome,

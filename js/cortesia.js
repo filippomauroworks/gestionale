@@ -106,7 +106,8 @@ export function leggiFattura(righe){
       if (r) blocco.push(r);
     }
     const ids = blocco.slice(1).filter(x => /^(p\.?\s*iva|c\.?\s*f\.?|codice fiscale)/i.test(x));
-    const indirizzo = blocco.slice(1).filter(x => !ids.includes(x));
+    // Codice destinatario (SDI) e PEC non vanno nella copia di cortesia.
+    const indirizzo = blocco.slice(1).filter(x => !ids.includes(x) && !/^(codice\s+(destinatario|sdi)|sdi\b|pec\b)/i.test(x));
     D.dest = [blocco[0] || "", ids.map(etichetta).join(" · "), indirizzo.join(", "), ""];
     for (const x of ids){
       const v = x.replace(/^.*?:\s*/, "").replace(/\s/g, "").toUpperCase().replace(/^IT(?=\d{11}$)/, "");
