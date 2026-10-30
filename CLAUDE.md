@@ -221,7 +221,7 @@ Il pannello laterale mostra i totali per fase, attrezzatura, noleggi, totale ser
 4. **Materiale**: girato grezzo escluso (attivo di default), consegna in 24 ore, materiale dal cliente entro N giorni.
 5. **Compenso**: totale pagato dal cliente, comprensivo di rivalsa e bollo, scritto anche in lettere.
    - Unica soluzione (alla firma, alle riprese, alla consegna, entro una data, a giorni dalla fattura) oppure più soluzioni, da 2 a 6, in percentuale o in euro.
-   - "A giorni dalla fattura" (anche nel preventivo): metodo da un elenco (bonifico bancario, bonifico istantaneo, PayPal, carta di credito o debito, contanti; `METODI` in `js/procedura.js`) e giorni scritti a mano → "tramite PayPal a trenta (30) giorni dalla data della fattura" (nel preventivo il numero senza lettere). La frase sul conto (`{{FRASE_CONTO}}`) si adatta: tutta con bonifico, in parte, oppure assente se nessuna soluzione è con bonifico.
+   - "A giorni dalla fattura" (anche nel preventivo): metodo da un elenco (bonifico bancario, bonifico istantaneo, PayPal, carta di credito o debito, contanti; `METODI` in `js/procedura.js`) e giorni scritti a mano → "tramite PayPal a trenta (30) giorni dalla data della fattura" (nel preventivo in breve: "tramite PayPal a 30 gg data fattura"). La frase sul conto (`{{FRASE_CONTO}}`) si adatta: tutta con bonifico, in parte, oppure assente se nessuna soluzione è con bonifico.
    - Controllo che la somma torni e tasto "Assegna il resto all'ultima".
    - Conto per il bonifico dal foglio Conti.
 6. **Spese**: tre campi in minuscolo, separati da virgole. Compongono il Punto 6:

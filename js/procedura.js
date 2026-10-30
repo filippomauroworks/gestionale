@@ -92,8 +92,10 @@ export function erroreDate(lista){
 export const METODI = [["bonifico", "Bonifico bancario"], ["istantaneo", "Bonifico istantaneo"], ["paypal", "PayPal"], ["carta", "Carta di credito o debito"], ["contanti", "Contanti"]];
 const METODI_TESTO = {bonifico: "bonifico bancario", istantaneo: "bonifico istantaneo", paypal: "PayPal", carta: "carta di credito o debito", contanti: "contanti"};
 export const conBonifico = m => !m || m === "bonifico" || m === "istantaneo";
-// lettere: come scrivere il numero (nel contratto "trenta (30)", nel preventivo "30").
-export const fraseFattura = (metodo, giorni, lettere = String) =>
-  `tramite ${METODI_TESTO[metodo] || METODI_TESTO.bonifico} a ${lettere(+giorni)} ${+giorni === 1 ? "giorno" : "giorni"} dalla data della fattura`;
+// Nel contratto per esteso ("a trenta (30) giorni dalla data della fattura", con lettere = conLettere),
+// nel preventivo breve ("a 30 gg data fattura").
+export const fraseFattura = (metodo, giorni, lettere = null) =>
+  `tramite ${METODI_TESTO[metodo] || METODI_TESTO.bonifico} a ` +
+  (lettere ? `${lettere(+giorni)} ${+giorni === 1 ? "giorno" : "giorni"} dalla data della fattura` : `${+giorni} gg data fattura`);
 export const erroreGiorni = g => Number.isInteger(numeroIntero(g)) && numeroIntero(g) > 0 ? "" : "Indica a quanti giorni dalla data della fattura si paga.";
 const numeroIntero = g => String(g ?? "").trim() === "" ? NaN : Number(g);
