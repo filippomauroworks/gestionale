@@ -189,12 +189,16 @@ export function daPreventivo(codice){
       const fornitori = voci.filter(([, v]) => v.modo === "cons" && v.fatt !== "io").map(([id, v]) => nome(id, v)).concat((p.noleggi || []).some(n => n.paga === "cliente") ? ["noleggio di attrezzatura"] : []);
       const anticipate = voci.filter(([, v]) => v.modo === "cons" && v.fatt === "io").map(([id, v]) => nome(id, v));
       const acc = numero(p.accontoPerc), conAcconto = !!(p.accontoOn && acc > 0 && acc < 100);
+      // Scadenza e conto scelti nel preventivo con l'accettazione con firma.
+      const scadenza = p.accettOn && p.pagQuandoOn ? {quando: p.pagQuando || "consegna", data: p.pagData || ""} : null;
       b = Object.assign(BASE(), {
         cli: d.cliente?.id || "", titolo: d.titolo, oggetto: p.desc || "", date: normalizzaDate(p.date).length ? normalizzaDate(p.date) : BASE().date, luogo: p.luogo || "",
         consegnaOn: !!p.consOn, consegnaGiorni: p.consGiorni || "10", modificheOn: !!p.revOn, modificheN: p.revN || "2",
         totale: p.conto?.voluto ? cifraCampo(p.conto.voluto) : "",
         multi: conAcconto, modo: "perc",
-        rate: conAcconto ? [{val: qta(acc), quando: "firma", data: ""}, {val: qta(100 - acc), quando: "consegna", data: ""}] : BASE().rate,
+        rate: conAcconto ? [{val: qta(acc), quando: "firma", data: ""}, {val: qta(100 - acc), quando: scadenza?.quando || "consegna", data: scadenza?.data || ""}] : BASE().rate,
+        ...(scadenza && !conAcconto ? {unicaQuando: scadenza.quando, unicaData: scadenza.data} : {}),
+        ...(p.accettOn && p.pagContoOn && p.pagConto ? {conto: p.pagConto} : {}),
         speseIncluse: unici(incluse), speseFornitori: unici(fornitori), speseAnticipate: unici(anticipate), rifPrv: codice});
       salva(); vai();
     } catch(e){ gestisciErrore(e, crea); }

@@ -168,7 +168,7 @@ Come nel prototipo.
    - livello forzabile a mano; scelta "Come kit / A pezzi";
    - "Importa da una lista ATT" in archivio;
    - interruttore "Genera anche la lista ATT".
-8. **Condizioni**, tutte facoltative e spente: acconto (%), revisioni incluse, tempi di consegna (giorni lavorativi), note generali, "Accettazione con firma" (in fondo la clausola di accettazione e gli spazi per luogo, data e firme del cliente e di Filippo: il preventivo firmato vale come accordo di inizio lavori).
+8. **Condizioni**, tutte facoltative e spente: acconto (%), revisioni incluse, tempi di consegna (giorni lavorativi), note generali, "Accettazione con firma" (in fondo la clausola di accettazione e gli spazi per luogo, data e firme del cliente e di Filippo: il preventivo firmato vale come accordo di inizio lavori). Con l'accettazione attiva compaiono due opzioni, come nel Punto 5 del contratto: "Scadenza del pagamento" (alla firma del preventivo, il giorno delle riprese, alla consegna, entro una data; con l'acconto diventa la scadenza del saldo) e "Dati per il bonifico" (conto dal foglio Conti). Finiscono tra le condizioni: `Saldo alla consegna del lavoro.`, `Bonifico intestato a …, IBAN ….`
 9. **Totale**:
    - cifra finale desiderata, oppure "Nessun arrotondamento";
    - arrotondamento con segno, in su o in giù, e avviso oltre il 15%;
@@ -249,7 +249,8 @@ Il pannello laterale mostra i totali per fase, attrezzatura, noleggi, totale ser
 - cliente, titolo, descrizione come oggetto, date (giorni e intervalli) e luogo;
 - consegna e revisioni;
 - totale al cliente;
-- acconto come pagamento in due soluzioni (acconto alla firma, resto alla consegna);
+- acconto come pagamento in due soluzioni (acconto alla firma, resto alla consegna o alla scadenza scelta nel preventivo);
+- scadenza del pagamento e conto, se nel preventivo erano attivi con l'accettazione con firma;
 - spese, divise per tipo.
 
 Le fasi restano vuote.

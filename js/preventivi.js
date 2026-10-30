@@ -22,7 +22,8 @@ const BKEY = "fm-bozza-preventivo-v1";
 const BASE = () => ({step: "cliente", visited: ["cliente"], cli: "", titolo: "", desc: "", date: [{da: "", a: "", intervallo: false}], luogo: "", dataPrev: oggi(), validita: "30",
   voci: {}, nLib: 0,
   attMode: "lista", attUnit: "g", attGiorni: "", attLivello: "", kitNome: "", kitPrezzo: "", items: {}, manuali: {}, nMan: 0, override: "auto", listaMode: "kit", tetto: "top", tettoPrezzo: "", genAtt: true,
-  noleggi: [], accontoOn: false, accontoPerc: "30", revOn: false, revN: "2", consOn: false, consGiorni: "10", accettOn: false, note: "",
+  noleggi: [], accontoOn: false, accontoPerc: "30", revOn: false, revN: "2", consOn: false, consGiorni: "10", accettOn: false,
+  pagQuandoOn: false, pagQuando: "consegna", pagData: "", pagContoOn: false, pagConto: "", note: "",
   attNota: "", cifra: "", noRound: true, edit: null, saved: null});
 let b = store.get(BKEY, null);
 if (b) b = Object.assign(BASE(), b);
@@ -37,6 +38,10 @@ const NOME_FASE = Object.fromEntries(FASI);
 
 /* ---------- Dati dai fogli ---------- */
 let L = null, C = null;
+// Scadenza del pagamento, come nei contratti (Punto 5); il testo parla del preventivo invece che del contratto.
+const QUANDO = [["firma", "Alla firma del preventivo"], ["riprese", "Il giorno delle riprese"], ["consegna", "Alla consegna"], ["data", "Entro una data"]];
+const QUANDO_TESTO = {firma: "alla firma del preventivo", riprese: "il giorno delle riprese", consegna: "alla consegna del lavoro"};
+const contoBanca = () => C?.conti.find(x => x.iban === b.pagConto) || C?.conti[0] || null;
 async function caricaFogli(){ [L, C] = await Promise.all([listino(), clienti()]); }
 
 // Fase di un servizio dalla sua categoria (Pre-produzione, Produzione, Post-produzione).
@@ -166,6 +171,13 @@ function vociCliente(){
 function condizioni(){
   const c = [];
   if (b.accontoOn) c.push(`Acconto del ${b.accontoPerc}% alla conferma del preventivo.`);
+  // Pagamento: solo con l'accettazione con firma, quando il preventivo vale come accordo.
+  if (b.accettOn && b.pagQuandoOn){
+    const q = b.pagQuando === "data" ? (b.pagData ? "entro il " + dataLunga(b.pagData) : "entro una data da indicare") : QUANDO_TESTO[b.pagQuando];
+    c.push(`${b.accontoOn ? "Saldo" : "Pagamento"} ${q}.`);
+  }
+  const k = b.accettOn && b.pagContoOn && contoBanca();
+  if (k) c.push(`Bonifico intestato a ${k.intestatario || "Filippo Mauro"}, IBAN ${k.iban}.`);
   if (b.revOn) c.push(`${b.revN} ${+b.revN === 1 ? "revisione inclusa" : "revisioni incluse"}.`);
   if (b.consOn) c.push(`Consegna stimata in ${b.consGiorni} giorni lavorativi dalle riprese.`);
   c.push(`Preventivo valido ${b.validita} giorni dalla data di emissione.`);
@@ -255,6 +267,7 @@ export async function vistaProcedura(view){
   // Voci e articoli che non esistono più nel foglio: via dalla bozza.
   Object.keys(b.voci).forEach(id => { if (!b.voci[id].libera && !servizio(id)) delete b.voci[id]; });
   Object.keys(b.items).forEach(id => { if (!articolo(id)) delete b.items[id]; });
+  if (!b.pagConto && C.conti.length) b.pagConto = C.conti[0].iban;
   if (!b.attLivello && kitUsabili().length) b.attLivello = kitUsabili()[Math.min(1, kitUsabili().length - 1)].nome;
   if (!passi().includes(b.step)) b.step = "att";
   const st = passi(), i = st.indexOf(b.step), ultimo = i === st.length - 1;
@@ -520,7 +533,14 @@ function passoHTML(){
       ${interruttore(Q, "consOn", b.consOn, "Tempi di consegna", "Stima in giorni lavorativi dalle riprese")}
       ${b.consOn ? `<div class="sub"><label class="f"><span>Giorni lavorativi</span><input class="inp num" type="number" min="1" ${Q}="consGiorni" value="${esc(b.consGiorni)}"></label></div>` : ""}
       <label class="f" style="margin-top:20px"><span>Note generali (facoltative)</span><textarea class="inp" ${Q}="note" placeholder="Es. Eventuali permessi di ripresa sono a carico del cliente.">${esc(b.note)}</textarea></label>
-      <div style="margin-top:20px">${interruttore(Q, "accettOn", b.accettOn, "Accettazione con firma", "In fondo la clausola di accettazione e gli spazi per luogo, data e firme: il preventivo firmato vale come accordo di inizio lavori")}</div>`;
+      <div style="margin-top:20px">${interruttore(Q, "accettOn", b.accettOn, "Accettazione con firma", "In fondo la clausola di accettazione e gli spazi per luogo, data e firme: il preventivo firmato vale come accordo di inizio lavori")}</div>
+      ${b.accettOn ? `<div class="sub">
+        ${interruttore(Q, "pagQuandoOn", b.pagQuandoOn, "Scadenza del pagamento", b.accontoOn ? "Quando si paga il saldo, dopo l’acconto" : "Quando si paga")}
+        ${b.pagQuandoOn ? `<label class="f"><span>Quando</span>${selezione(`${Q}="pagQuando" style="max-width:260px"`, QUANDO, b.pagQuando)}</label>
+          ${b.pagQuando === "data" ? `<label class="f"><span>Data</span><input class="inp" type="date" ${Q}="pagData" value="${esc(b.pagData)}" style="max-width:200px"></label>` : ""}` : ""}
+        ${interruttore(Q, "pagContoOn", b.pagContoOn, "Dati per il bonifico", "Intestatario e IBAN tra le condizioni")}
+        ${b.pagContoOn ? `<label class="f"><span>Conto</span>${C.conti.length ? selezione(`${Q}="pagConto" style="max-width:420px"`, C.conti.map(x => [x.iban, `${x.banca || "Conto"} · ${x.iban}`]), b.pagConto) : `<span class="err" style="display:block">Il foglio Conti è vuoto: aggiungi almeno un conto.</span>`}</label>` : ""}
+      </div>` : ""}`;
 
     case "totale": return `<h2 class="field-q">Totale</h2><p class="hint">Scrivi la cifra che comunicherai al cliente: l’app calcola l’arrotondamento e il compenso da inserire su Fiscozen.</p>
       ${interruttore(Q, "noRound", b.noRound, "Nessun arrotondamento", "Il totale resta quello calcolato")}
@@ -601,6 +621,8 @@ function valida(id){
     if (b.accontoOn){ const p = numero(b.accontoPerc); if (!(p > 0 && p < 100)) return "L’acconto deve essere tra 1 e 99%."; }
     if (b.revOn && !(b.revN !== "" && +b.revN >= 0)) return "Indica il numero di revisioni, oppure spegni l’opzione.";
     if (b.consOn && !(+b.consGiorni > 0)) return "Indica i giorni di consegna, oppure spegni l’opzione.";
+    if (b.accettOn && b.pagQuandoOn && b.pagQuando === "data" && !b.pagData) return "Indica la data entro cui pagare, oppure scegli un’altra scadenza.";
+    if (b.accettOn && b.pagContoOn && !contoBanca()) return "Il foglio Conti è vuoto: aggiungi un conto, oppure spegni i dati per il bonifico.";
   }
   if (id === "totale"){
     if (!(conto().servizi > 0)) return "Il preventivo è vuoto: aggiungi almeno una voce.";
@@ -637,7 +659,7 @@ function ridisegna(fuoco){
 }
 const vaiAlPasso = id => { b.step = id; if (!b.visited.includes(id)) b.visited.push(id); salva(); vistaProcedura($("#view")); };
 
-const RIDISEGNA = ["cli", "attMode", "attUnit", "attLivello", "override", "tetto", "listaMode", "accontoOn", "revOn", "consOn", "noRound", "genAtt"];
+const RIDISEGNA = ["cli", "attMode", "attUnit", "attLivello", "override", "tetto", "listaMode", "accontoOn", "revOn", "consOn", "accettOn", "pagQuandoOn", "pagQuando", "pagContoOn", "noRound", "genAtt"];
 function campo(el){
   if (!b || !L) return;
   let rr = false, fuoco = null;
