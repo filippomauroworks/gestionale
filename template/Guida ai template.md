@@ -110,6 +110,7 @@ Kit e noleggi compaiono come voci di Produzione: `Attrezzatura tecnica, Kit Comp
 | `{{FRASE_COMPENSO}}` | `Il compenso complessivo è di 1.000,00 € (mille/00 euro), comprensivo di rivalsa INPS 4% e imposta di bollo. Operazione in regime forfettario, senza applicazione dell’IVA.` |
 | `{{FRASE_PAGAMENTO}}` | `Il pagamento avverrà in un’unica soluzione alla consegna del lavoro.` oppure `… in due soluzioni: 20% (200,00 €) alla firma del contratto; 80% (800,00 €) alla consegna del lavoro.` |
 | `{{INTESTATARIO}}`, `{{IBAN}}` | Dal foglio Conti |
+| `{{FRASE_CONTO}}` | `I pagamenti si effettuano con bonifico bancario intestato a …, IBAN …. ` (con uno spazio in fondo). Se alcune soluzioni si pagano con un altro metodo: `I pagamenti con bonifico si effettuano sul conto intestato a …`; se nessuna è con bonifico, vuota |
 | `{{FRASE_SPESE}}` | Vedi sotto |
 | `{{FRASE_LICENZA}}` | `Il Videomaker concede al Cliente una licenza non esclusiva, senza limiti di tempo e di territorio, per utilizzare le opere realizzate con il presente contratto nei seguenti ambiti: sito web, social network. Il Cliente può adattarle a formati e piattaforme diversi (ad esempio tagli di durata, cambi di formato, sottotitoli) senza alterarne il contenuto. Utilizzi diversi da quelli indicati vanno concordati per iscritto.` |
 | `{{FRASE_PORTFOLIO?}}` | `Il Videomaker può utilizzare le opere, o loro estratti, nel proprio portfolio e sui propri canali professionali, a scopo promozionale. Il Cliente può chiedere di escludere questo utilizzo per contenuti riservati.` |

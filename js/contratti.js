@@ -11,7 +11,7 @@ import { cartellaCliente, generaDocumento } from "./genera.js";
 import { nomeFile, nomeCartellaCliente } from "./nomi.js";
 import { rigaDocumento, linkDoc } from "./elenco.js";
 import { gestisciErrore, CollegamentoMancante } from "./errori.js";
-import { opzione, interruttore, selezione, barraPassi, salvata, avanzamento, campoDate, azioneDate, erroreDate } from "./procedura.js";
+import { opzione, interruttore, selezione, barraPassi, salvata, avanzamento, campoDate, azioneDate, erroreDate, METODI, conBonifico, fraseFattura, erroreGiorni } from "./procedura.js";
 import { registraApritore, avvisoModifica, ultimaVersione } from "./riapertura.js";
 import { numero, centesimi, eur, cifraCampo, qta, oggi, dataLunga, dataBreve, euroInLettere, conLettere, normalizzaDate, giorniDate, elencoDate } from "./calcoli.js";
 
@@ -20,7 +20,7 @@ const BKEY = "fm-bozza-contratto-v3";
 const BASE = () => ({step: "cliente", visited: ["cliente"], cli: "", firmatario: "", titolo: "", oggetto: "", fasi: [""], date: [{da: "", a: "", intervallo: false}], luogo: "",
   consegnaOn: false, consegnaGiorni: "10", consegnaDa: "riprese", modificheOn: false, modificheN: "2",
   grezzo: true, h24: false, materialeOn: false, materialeGiorni: "15",
-  totale: "", multi: false, unicaQuando: "consegna", unicaData: "", modo: "perc",
+  totale: "", multi: false, unicaQuando: "consegna", unicaData: "", unicaMetodo: "bonifico", unicaGiorni: "30", modo: "perc",
   rate: [{val: "", quando: "firma", data: ""}, {val: "", quando: "consegna", data: ""}], conto: "",
   speseIncluse: "", speseFornitori: "", speseAnticipate: "",
   licenza: "non", usi: ["web", "social"], usiAltro: "", portfolio: true, citazione: true, musicaOn: false, musicaLibreria: "", musicaPiano: "",
@@ -35,7 +35,7 @@ const ETICHETTE = Object.fromEntries(PASSI);
 const passi = () => PASSI.map(p => p[0]);
 
 const USI = [["web", "Sito web"], ["social", "Social network"], ["piattaforme", "Altre piattaforme video online"], ["tv", "Televisione"], ["cinema", "Cinema e festival"], ["eventi", "Eventi e fiere"], ["stampa", "Stampa (fotogrammi)"]];
-const QUANDO = [["firma", "Alla firma"], ["riprese", "Il giorno delle riprese"], ["consegna", "Alla consegna"], ["data", "Entro una data"]];
+const QUANDO = [["firma", "Alla firma"], ["riprese", "Il giorno delle riprese"], ["consegna", "Alla consegna"], ["data", "Entro una data"], ["fattura", "A giorni dalla fattura"]];
 const QUANDO_TESTO = {firma: "alla firma del contratto", riprese: "il giorno delle riprese", consegna: "alla consegna del lavoro"};
 const FORI = {
   torino: ["Foro di Torino", "Competente in via esclusiva Torino"],
@@ -53,7 +53,8 @@ const conto = () => C?.conti.find(x => x.iban === b.conto) || C?.conti[0] || nul
 
 /* ---------- Pagamento ---------- */
 const totaleC = () => centesimi(b.totale) || 0;
-const quandoTesto = (q, data) => q === "data" ? (data ? "entro il " + dataLunga(data) : "entro una data da indicare") : QUANDO_TESTO[q];
+const quandoTesto = (q, data, metodo, giorni) => q === "data" ? (data ? "entro il " + dataLunga(data) : "entro una data da indicare")
+  : q === "fattura" ? fraseFattura(metodo, giorni, conLettere) : QUANDO_TESTO[q];
 
 // Somma delle soluzioni rispetto al totale (in percentuale o in centesimi).
 function sommaRate(){
@@ -77,10 +78,20 @@ function importiRate(){
 /* ---------- Frasi del contratto ---------- */
 const pct = n => qta(n) + "%";
 function frasePagamento(){
-  if (!b.multi) return `Il pagamento avverrà in un’unica soluzione ${quandoTesto(b.unicaQuando, b.unicaData)}.`;
+  if (!b.multi) return `Il pagamento avverrà in un’unica soluzione ${quandoTesto(b.unicaQuando, b.unicaData, b.unicaMetodo, b.unicaGiorni)}.`;
   const imp = importiRate();
-  const parti = b.rate.map((r, i) => `${b.modo === "perc" ? `${pct(numero(r.val) || 0)} (${eur(imp[i])})` : eur(imp[i])} ${quandoTesto(r.quando, r.data)}`);
+  const parti = b.rate.map((r, i) => `${b.modo === "perc" ? `${pct(numero(r.val) || 0)} (${eur(imp[i])})` : eur(imp[i])} ${quandoTesto(r.quando, r.data, r.metodo, r.giorni)}`);
   return `Il pagamento avverrà in ${NUMERI[b.rate.length]} soluzioni: ${parti.join("; ")}.`;
+}
+/* Conto per il bonifico (Punto 5). Le scadenze senza metodo si pagano con bonifico, come prima;
+   se nessuna soluzione è con bonifico la frase non c'è. Finisce con uno spazio: la segue "Per ogni pagamento…". */
+function fraseConto(){
+  const k = conto(), soluzioni = b.multi ? b.rate : [{quando: b.unicaQuando, metodo: b.unicaMetodo}];
+  const metodi = soluzioni.map(r => r.quando === "fattura" ? r.metodo : "bonifico");
+  if (!k || !metodi.some(conBonifico)) return "";
+  return metodi.every(conBonifico)
+    ? `I pagamenti si effettuano con bonifico bancario intestato a ${k.intestatario}, IBAN ${k.iban}. `
+    : `I pagamenti con bonifico si effettuano sul conto intestato a ${k.intestatario}, IBAN ${k.iban}. `;
 }
 function fraseCompenso(){
   const L4 = stato.impostazioni.etichetta4, l = L4.charAt(0).toLowerCase() + L4.slice(1);
@@ -190,14 +201,14 @@ export function daPreventivo(codice){
       const anticipate = voci.filter(([, v]) => v.modo === "cons" && v.fatt === "io").map(([id, v]) => nome(id, v));
       const acc = numero(p.accontoPerc), conAcconto = !!(p.accontoOn && acc > 0 && acc < 100);
       // Scadenza e conto scelti nel preventivo con l'accettazione con firma.
-      const scadenza = p.accettOn && p.pagQuandoOn ? {quando: p.pagQuando || "consegna", data: p.pagData || ""} : null;
+      const scadenza = p.accettOn && p.pagQuandoOn ? {quando: p.pagQuando || "consegna", data: p.pagData || "", metodo: p.pagMetodo || "bonifico", giorni: p.pagGiorni || "30"} : null;
       b = Object.assign(BASE(), {
         cli: d.cliente?.id || "", titolo: d.titolo, oggetto: p.desc || "", date: normalizzaDate(p.date).length ? normalizzaDate(p.date) : BASE().date, luogo: p.luogo || "",
         consegnaOn: !!p.consOn, consegnaGiorni: p.consGiorni || "10", modificheOn: !!p.revOn, modificheN: p.revN || "2",
         totale: p.conto?.voluto ? cifraCampo(p.conto.voluto) : "",
         multi: conAcconto, modo: "perc",
-        rate: conAcconto ? [{val: qta(acc), quando: "firma", data: ""}, {val: qta(100 - acc), quando: scadenza?.quando || "consegna", data: scadenza?.data || ""}] : BASE().rate,
-        ...(scadenza && !conAcconto ? {unicaQuando: scadenza.quando, unicaData: scadenza.data} : {}),
+        rate: conAcconto ? [{val: qta(acc), quando: "firma", data: ""}, {val: qta(100 - acc), quando: scadenza?.quando || "consegna", data: scadenza?.data || "", ...(scadenza ? {metodo: scadenza.metodo, giorni: scadenza.giorni} : {})}] : BASE().rate,
+        ...(scadenza && !conAcconto ? {unicaQuando: scadenza.quando, unicaData: scadenza.data, unicaMetodo: scadenza.metodo, unicaGiorni: scadenza.giorni} : {}),
         ...(p.accettOn && p.pagContoOn && p.pagConto ? {conto: p.pagConto} : {}),
         speseIncluse: unici(incluse), speseFornitori: unici(fornitori), speseAnticipate: unici(anticipate), rifPrv: codice});
       salva(); vai();
@@ -249,7 +260,7 @@ function rateHTML(){
       <input class="inp" inputmode="decimal" data-rata="${i}" data-k="val" value="${esc(r.val)}" aria-label="Importo soluzione ${i + 1}">
       <span>${unita}</span>
       ${selezione(`data-rata="${i}" data-k="quando" aria-label="Quando"`, QUANDO, r.quando)}
-      <div class="extra">${r.quando === "data" ? `<input class="inp" type="date" data-rata="${i}" data-k="data" value="${esc(r.data)}" aria-label="Data" style="max-width:180px">` : ""}<span class="conv" data-conv="${i}"></span></div>
+      <div class="extra">${r.quando === "data" ? `<input class="inp" type="date" data-rata="${i}" data-k="data" value="${esc(r.data)}" aria-label="Data" style="max-width:180px">` : ""}${r.quando === "fattura" ? `${selezione(`data-rata="${i}" data-k="metodo" aria-label="Metodo di pagamento" style="max-width:220px"`, METODI, r.metodo || "bonifico")}<input class="inp num" type="number" min="1" data-rata="${i}" data-k="giorni" value="${esc(r.giorni ?? "30")}" aria-label="Giorni dalla fattura" style="max-width:80px"><span class="muted">gg dalla fattura</span>` : ""}<span class="conv" data-conv="${i}"></span></div>
     </div>`).join("");
 }
 
@@ -290,7 +301,9 @@ function passoHTML(){
       <label class="f"><span>Compenso totale (€)</span><input class="inp num" inputmode="decimal" ${F}="totale" value="${esc(b.totale)}" placeholder="0,00"><div class="lettere" id="lettere"></div></label>
       ${interruttore(F, "multi", b.multi, "Pagamento in più soluzioni", "Se è spento, il pagamento è in un’unica soluzione")}
       ${!b.multi ? `<div class="sub"><label class="f"><span>Quando</span>${selezione(`${F}="unicaQuando" style="max-width:260px"`, QUANDO, b.unicaQuando)}</label>
-          ${b.unicaQuando === "data" ? `<label class="f"><span>Data</span><input class="inp" type="date" ${F}="unicaData" value="${esc(b.unicaData)}" style="max-width:200px"></label>` : ""}</div>`
+          ${b.unicaQuando === "data" ? `<label class="f"><span>Data</span><input class="inp" type="date" ${F}="unicaData" value="${esc(b.unicaData)}" style="max-width:200px"></label>` : ""}
+          ${b.unicaQuando === "fattura" ? `<label class="f"><span>Metodo di pagamento</span>${selezione(`${F}="unicaMetodo" style="max-width:260px"`, METODI, b.unicaMetodo)}</label>
+            <label class="f"><span>Giorni dalla data della fattura</span><input class="inp num" type="number" min="1" ${F}="unicaGiorni" value="${esc(b.unicaGiorni)}"></label>` : ""}</div>`
       : `<div class="sub">
           <label class="f"><span>Numero di soluzioni</span>${selezione(`${F}="nRate" style="max-width:120px"`, [2, 3, 4, 5, 6].map(n => [n, n]), b.rate.length)}</label>
           <div class="seg" role="radiogroup" aria-label="Modalità" style="margin-bottom:14px">${[["perc", "In percentuale"], ["euro", "In euro"]].map(([v, l]) => `<label><input type="radio" name="c-modo" value="${v}" ${F}="modo" ${b.modo === v ? "checked" : ""}>${l}</label>`).join("")}</div>
@@ -396,9 +409,11 @@ function valida(id){
   if (id === "compenso"){
     if (!(totaleC() > 0)) return "Inserisci il compenso totale.";
     if (!b.multi && b.unicaQuando === "data" && !b.unicaData) return "Indica la data del pagamento.";
+    if (!b.multi && b.unicaQuando === "fattura" && erroreGiorni(b.unicaGiorni)) return erroreGiorni(b.unicaGiorni);
     if (b.multi){
       if (b.rate.some(r => !(numero(r.val) > 0))) return "Compila l’importo di ogni soluzione.";
       if (b.rate.some(r => r.quando === "data" && !r.data)) return "Indica la data delle soluzioni con scadenza.";
+      if (b.rate.some(r => r.quando === "fattura" && erroreGiorni(r.giorni ?? "30"))) return erroreGiorni("");
       if (!sommaRate().ok) return b.modo === "perc" ? "Le percentuali devono fare 100%." : "La somma delle soluzioni deve essere uguale al compenso totale.";
     }
     if (!conto()) return "Aggiungi un conto nel foglio Conti.";
@@ -450,7 +465,9 @@ function campo(el){
   if (el.dataset.fase !== undefined) b.fasi[+el.dataset.fase] = el.value;
   else if (el.dataset.dt === "c") b.date[+el.dataset.i][el.dataset.k] = el.value;
   else if (el.dataset.rata !== undefined){
-    b.rate[+el.dataset.rata][el.dataset.k] = el.value;
+    const rata = b.rate[+el.dataset.rata];
+    rata[el.dataset.k] = el.value;
+    if (el.dataset.k === "quando" && el.value === "fattura"){ rata.metodo ??= "bonifico"; rata.giorni ??= "30"; }
     if (el.dataset.k === "quando"){ rr = true; fuoco = `[data-rata="${el.dataset.rata}"][data-k="quando"]`; }
   } else {
     const f = el.getAttribute(F);
@@ -488,7 +505,7 @@ function datiTemplate(codice){
     FRASE_24_ORE: b.h24 ? "Il Videomaker consegna il prodotto finito entro ventiquattro (24) ore dalla fine dell’evento." : "",
     MATERIALE_CLIENTE: b.materialeOn, GIORNI_MATERIALE: b.materialeOn ? conLettere(+b.materialeGiorni) : "",
     FRASE_COMPENSO: fraseCompenso(), FRASE_PAGAMENTO: frasePagamento(),
-    INTESTATARIO: k?.intestatario || "", IBAN: k?.iban || "",
+    INTESTATARIO: k?.intestatario || "", IBAN: k?.iban || "", FRASE_CONTO: fraseConto(),
     FRASE_SPESE: fraseSpese(), FRASE_LICENZA: fraseLicenza(),
     FRASE_PORTFOLIO: b.portfolio ? "Il Videomaker può utilizzare le opere, o loro estratti, nel proprio portfolio e sui propri canali professionali, a scopo promozionale. Il Cliente può chiedere di escludere questo utilizzo per contenuti riservati." : "",
     FRASE_CITAZIONE: b.citazione ? "Dove il formato lo consente (titoli di coda, descrizione del video, didascalia), il Cliente indica il Videomaker come autore del video." : "",

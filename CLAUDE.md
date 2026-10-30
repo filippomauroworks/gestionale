@@ -168,7 +168,7 @@ Come nel prototipo.
    - livello forzabile a mano; scelta "Come kit / A pezzi";
    - "Importa da una lista ATT" in archivio;
    - interruttore "Genera anche la lista ATT".
-8. **Condizioni**, tutte facoltative e spente: acconto (%), revisioni incluse, tempi di consegna (giorni lavorativi), note generali, "Accettazione con firma" (in fondo la clausola di accettazione e gli spazi per luogo, data e firme del cliente e di Filippo: il preventivo firmato vale come accordo di inizio lavori). Con l'accettazione attiva compaiono due opzioni, come nel Punto 5 del contratto: "Scadenza del pagamento" (alla firma del preventivo, il giorno delle riprese, alla consegna, entro una data; con l'acconto diventa la scadenza del saldo) e "Dati per il bonifico" (conto dal foglio Conti). Finiscono tra le condizioni: `Saldo alla consegna del lavoro.`, `Bonifico intestato a …, IBAN ….`
+8. **Condizioni**, tutte facoltative e spente: acconto (%), revisioni incluse, tempi di consegna (giorni lavorativi), note generali, "Accettazione con firma" (in fondo la clausola di accettazione e gli spazi per luogo, data e firme del cliente e di Filippo: il preventivo firmato vale come accordo di inizio lavori). Con l'accettazione attiva compaiono due opzioni, come nel Punto 5 del contratto: "Scadenza del pagamento" (alla firma del preventivo, il giorno delle riprese, alla consegna, entro una data, a giorni dalla fattura; con l'acconto diventa la scadenza del saldo) e "Dati per il bonifico" (conto dal foglio Conti). Finiscono tra le condizioni: `Saldo alla consegna del lavoro.`, `Bonifico intestato a …, IBAN ….`
 9. **Totale**:
    - cifra finale desiderata, oppure "Nessun arrotondamento";
    - arrotondamento con segno, in su o in giù, e avviso oltre il 15%;
@@ -220,7 +220,8 @@ Il pannello laterale mostra i totali per fase, attrezzatura, noleggi, totale ser
 3. **Tempi**: consegna (giorni lavorativi dalle riprese o dal materiale) e modifiche incluse, entrambe facoltative.
 4. **Materiale**: girato grezzo escluso (attivo di default), consegna in 24 ore, materiale dal cliente entro N giorni.
 5. **Compenso**: totale pagato dal cliente, comprensivo di rivalsa e bollo, scritto anche in lettere.
-   - Unica soluzione (alla firma, alle riprese, alla consegna, entro una data) oppure più soluzioni, da 2 a 6, in percentuale o in euro.
+   - Unica soluzione (alla firma, alle riprese, alla consegna, entro una data, a giorni dalla fattura) oppure più soluzioni, da 2 a 6, in percentuale o in euro.
+   - "A giorni dalla fattura" (anche nel preventivo): metodo da un elenco (bonifico bancario, bonifico istantaneo, PayPal, carta di credito o debito, contanti; `METODI` in `js/procedura.js`) e giorni scritti a mano → "tramite PayPal a trenta (30) giorni dalla data della fattura" (nel preventivo il numero senza lettere). La frase sul conto (`{{FRASE_CONTO}}`) si adatta: tutta con bonifico, in parte, oppure assente se nessuna soluzione è con bonifico.
    - Controllo che la somma torni e tasto "Assegna il resto all'ultima".
    - Conto per il bonifico dal foglio Conti.
 6. **Spese**: tre campi in minuscolo, separati da virgole. Compongono il Punto 6:

@@ -12,7 +12,7 @@ import { aggiornaJSON } from "./drive.js";
 import { nomeFile, nomeCartellaCliente, slug } from "./nomi.js";
 import { rigaDocumento, filtra, linkDoc } from "./elenco.js";
 import { gestisciErrore, CollegamentoMancante } from "./errori.js";
-import { opzione, interruttore, selezione, barraPassi, avanzamento, campoDate, azioneDate, erroreDate } from "./procedura.js";
+import { opzione, interruttore, selezione, barraPassi, avanzamento, campoDate, azioneDate, erroreDate, METODI, fraseFattura, erroreGiorni } from "./procedura.js";
 import { registraApritore, avvisoModifica, ultimaVersione } from "./riapertura.js";
 import { articoloManuale, elencoManuali, nuovoManuale, togliManuale, copiaManuali, erroreManuali, campoNome, campoPrezzo, tastoTogli, tastoAggiungi } from "./manuali.js";
 import { numero, centesimi, eur, eurSegno, cifraCampo, qta, totali, fiscozen, oggi, dataLunga, dataBreve, elencoDate, normalizzaDate, giorniDate } from "./calcoli.js";
@@ -23,7 +23,7 @@ const BASE = () => ({step: "cliente", visited: ["cliente"], cli: "", titolo: "",
   voci: {}, nLib: 0,
   attMode: "lista", attUnit: "g", attGiorni: "", attLivello: "", kitNome: "", kitPrezzo: "", items: {}, manuali: {}, nMan: 0, override: "auto", listaMode: "kit", tetto: "top", tettoPrezzo: "", genAtt: true,
   noleggi: [], accontoOn: false, accontoPerc: "30", revOn: false, revN: "2", consOn: false, consGiorni: "10", accettOn: false,
-  pagQuandoOn: false, pagQuando: "consegna", pagData: "", pagContoOn: false, pagConto: "", note: "",
+  pagQuandoOn: false, pagQuando: "consegna", pagData: "", pagMetodo: "bonifico", pagGiorni: "30", pagContoOn: false, pagConto: "", note: "",
   attNota: "", cifra: "", noRound: true, edit: null, saved: null});
 let b = store.get(BKEY, null);
 if (b) b = Object.assign(BASE(), b);
@@ -39,7 +39,7 @@ const NOME_FASE = Object.fromEntries(FASI);
 /* ---------- Dati dai fogli ---------- */
 let L = null, C = null;
 // Scadenza del pagamento, come nei contratti (Punto 5); il testo parla del preventivo invece che del contratto.
-const QUANDO = [["firma", "Alla firma del preventivo"], ["riprese", "Il giorno delle riprese"], ["consegna", "Alla consegna"], ["data", "Entro una data"]];
+const QUANDO = [["firma", "Alla firma del preventivo"], ["riprese", "Il giorno delle riprese"], ["consegna", "Alla consegna"], ["data", "Entro una data"], ["fattura", "A giorni dalla fattura"]];
 const QUANDO_TESTO = {firma: "alla firma del preventivo", riprese: "il giorno delle riprese", consegna: "alla consegna del lavoro"};
 const contoBanca = () => C?.conti.find(x => x.iban === b.pagConto) || C?.conti[0] || null;
 async function caricaFogli(){ [L, C] = await Promise.all([listino(), clienti()]); }
@@ -173,7 +173,8 @@ function condizioni(){
   if (b.accontoOn) c.push(`Acconto del ${b.accontoPerc}% alla conferma del preventivo.`);
   // Pagamento: solo con l'accettazione con firma, quando il preventivo vale come accordo.
   if (b.accettOn && b.pagQuandoOn){
-    const q = b.pagQuando === "data" ? (b.pagData ? "entro il " + dataLunga(b.pagData) : "entro una data da indicare") : QUANDO_TESTO[b.pagQuando];
+    const q = b.pagQuando === "data" ? (b.pagData ? "entro il " + dataLunga(b.pagData) : "entro una data da indicare")
+      : b.pagQuando === "fattura" ? fraseFattura(b.pagMetodo, b.pagGiorni) : QUANDO_TESTO[b.pagQuando];
     c.push(`${b.accontoOn ? "Saldo" : "Pagamento"} ${q}.`);
   }
   const k = b.accettOn && b.pagContoOn && contoBanca();
@@ -537,7 +538,9 @@ function passoHTML(){
       ${b.accettOn ? `<div class="sub">
         ${interruttore(Q, "pagQuandoOn", b.pagQuandoOn, "Scadenza del pagamento", b.accontoOn ? "Quando si paga il saldo, dopo l’acconto" : "Quando si paga")}
         ${b.pagQuandoOn ? `<label class="f"><span>Quando</span>${selezione(`${Q}="pagQuando" style="max-width:260px"`, QUANDO, b.pagQuando)}</label>
-          ${b.pagQuando === "data" ? `<label class="f"><span>Data</span><input class="inp" type="date" ${Q}="pagData" value="${esc(b.pagData)}" style="max-width:200px"></label>` : ""}` : ""}
+          ${b.pagQuando === "data" ? `<label class="f"><span>Data</span><input class="inp" type="date" ${Q}="pagData" value="${esc(b.pagData)}" style="max-width:200px"></label>` : ""}
+          ${b.pagQuando === "fattura" ? `<label class="f"><span>Metodo di pagamento</span>${selezione(`${Q}="pagMetodo" style="max-width:260px"`, METODI, b.pagMetodo)}</label>
+            <label class="f"><span>Giorni dalla data della fattura</span><input class="inp num" type="number" min="1" ${Q}="pagGiorni" value="${esc(b.pagGiorni)}"></label>` : ""}` : ""}
         ${interruttore(Q, "pagContoOn", b.pagContoOn, "Dati per il bonifico", "Intestatario e IBAN tra le condizioni")}
         ${b.pagContoOn ? `<label class="f"><span>Conto</span>${C.conti.length ? selezione(`${Q}="pagConto" style="max-width:420px"`, C.conti.map(x => [x.iban, `${x.banca || "Conto"} · ${x.iban}`]), b.pagConto) : `<span class="err" style="display:block">Il foglio Conti è vuoto: aggiungi almeno un conto.</span>`}</label>` : ""}
       </div>` : ""}`;
@@ -622,6 +625,7 @@ function valida(id){
     if (b.revOn && !(b.revN !== "" && +b.revN >= 0)) return "Indica il numero di revisioni, oppure spegni l’opzione.";
     if (b.consOn && !(+b.consGiorni > 0)) return "Indica i giorni di consegna, oppure spegni l’opzione.";
     if (b.accettOn && b.pagQuandoOn && b.pagQuando === "data" && !b.pagData) return "Indica la data entro cui pagare, oppure scegli un’altra scadenza.";
+    if (b.accettOn && b.pagQuandoOn && b.pagQuando === "fattura" && erroreGiorni(b.pagGiorni)) return erroreGiorni(b.pagGiorni);
     if (b.accettOn && b.pagContoOn && !contoBanca()) return "Il foglio Conti è vuoto: aggiungi un conto, oppure spegni i dati per il bonifico.";
   }
   if (id === "totale"){
