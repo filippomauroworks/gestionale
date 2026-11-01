@@ -153,6 +153,8 @@ L'app elenca solo i punti presenti nel contratto:
 | `{{FRASE_SCADENZA?}}` | `Da saldare entro il 28/08/2026` |
 | `{{NOTE}}` | Note della fattura |
 
+Modalità di pagamento e note stanno nel **piè di pagina** (tabella a tre colonne sopra il numero di pagina), così finiscono sempre in fondo alla pagina; nel piè di pagina non c'è più la dicitura "Copia di cortesia · nessuna valenza fiscale", che è già in alto. Se la copia occupa due pagine, il blocco si ripete su entrambe. Il motore sostituisce i segnaposto semplici anche nei piè di pagina; `{{FRASE_SCADENZA?}}` vuoto lascia una riga vuota.
+
 ## LIS — Listino prezzi
 
 | Segnaposto | Contenuto |

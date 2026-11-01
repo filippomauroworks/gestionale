@@ -271,6 +271,8 @@ Le fasi restano vuote.
 2. Il cliente si riconosce dalla P.IVA o dal C.F. nel foglio Clienti.
 3. Schermata di verifica: tutto modificabile, con controllo che righe + rivalsa + bollo = totale. Se non torna, la generazione è bloccata.
 
+Nel template, modalità di pagamento e note stanno nel piè di pagina, sopra il numero di pagina, per finire in fondo alla pagina (1 novembre 2026); niente linea né dicitura a piè di pagina.
+
 **Com'è fatto il PDF di Fiscozen** (tarato su tre fatture vere, in `esempi-fiscozen/`, esclusa da git perché contiene dati dei clienti): in alto "Fattura # 25/2026" con la data; emittente nella metà sinistra e "Destinatario:" nella metà destra, sulle stesse righe (per questo `testoPdf` tiene separate le due metà); righe tra "Descrizione | Importo" e "Totale:"; "Modalità di pagamento" a sinistra (Intestato a, IBAN, Da saldare entro il) e "Note" a destra. Nelle fatture viste non ci sono righe di rivalsa né di bollo: i campi restano vuoti e il controllo è righe = totale. Il riquadro "Testo letto dal PDF" nella verifica mostra cosa ha letto l'app, per capire subito se un PDF diverso non torna.
 
 ---
