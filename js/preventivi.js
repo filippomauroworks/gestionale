@@ -66,6 +66,13 @@ const PAROLE = {"Giornata": ["giornata", "giornate"], "Mezza giornata": ["mezza 
 // Fisso solo se il prezzo fisso ha un valore (anche 0).
 const unitaPossibili = s => UNITA.filter(u => u !== "Fisso" || (s && s.fisso !== null));
 const prezzoListino = (s, u) => s && PREZZO_UNITA[u] ? s[PREZZO_UNITA[u]] : null;
+/* Giornate con una mezza (1,5 · 2,5…): le intere a prezzo di giornata, la mezza a prezzo di mezza giornata.
+   Restituisce {intere} se la quantità finisce in ,5, altrimenti null. */
+function conMezza(v){
+  if (v.unita !== "Giornata") return null;
+  const q = numero(v.qta);
+  return q > 0 && Math.abs(q - Math.floor(q) - 0.5) < 1e-9 ? {intere: Math.floor(q)} : null;
+}
 
 function nuovaVoce(id){
   const s = servizio(id);
@@ -73,6 +80,7 @@ function nuovaVoce(id){
   if (u === "Fisso" && s.fisso === null) u = "Forfait";
   const p = prezzoListino(s, u), aGiornata = (u === "Giornata" || u === "Mezza giornata") && faseDi(s.cat) === "prod";
   return {on: true, unita: u, qta: aGiornata ? String(giorniDefault()) : "1", ris: "1", prezzo: p !== null ? cifraCampo(p) : "", importo: "",
+    prezzoMezza: s.mezza !== null ? cifraCampo(s.mezza) : "",
     nota: s.nota && !s.notaObbligatoria ? s.nota : "", modo: "tot", stima: "", fatt: "cliente", esterna: s.esterna, costo: "", cifra: ""};
 }
 
@@ -87,7 +95,8 @@ function importoVoce(v){
   if (!v?.on || v.modo !== "tot") return 0;
   if (v.esterna) return centesimi(v.cifra) > 0 ? centesimi(v.cifra) : esternaCalcolata(v);
   if (v.unita === "Forfait") return centesimi(v.importo) || 0;
-  const q = numero(v.qta) || 0, r = v.unita === "Fisso" ? 1 : (numero(v.ris) || 0);
+  const q = numero(v.qta) || 0, r = v.unita === "Fisso" ? 1 : (numero(v.ris) || 0), m = conMezza(v);
+  if (m) return Math.round(r * (m.intere * (centesimi(v.prezzo) || 0) + (centesimi(v.prezzoMezza) || 0)));
   return Math.round(q * r * (centesimi(v.prezzo) || 0));
 }
 
@@ -137,8 +146,9 @@ function quantitaTesto(v, dettagliato){
   if (v.unita === "Forfait" || v.esterna) return dettagliato ? "forfait" : "";
   const q = numero(v.qta) || 0;
   if (v.unita === "Fisso") return "× " + qta(q);
-  const r = numero(v.ris) || 1, P = PAROLE[v.unita];
-  return `${qta(q)} ${P[q === 1 ? 0 : 1]}` + (r > 1 ? (dettagliato ? ` × ${qta(r)}` : `, ${qta(r)} persone`) : "");
+  const r = numero(v.ris) || 1, P = PAROLE[v.unita], m = conMezza(v);
+  const base = m ? (m.intere ? `${m.intere} ${m.intere === 1 ? "giornata" : "giornate"} e 1 mezza giornata` : "1 mezza giornata") : `${qta(q)} ${P[q === 1 ? 0 : 1]}`;
+  return base + (r > 1 ? (dettagliato ? ` × ${qta(r)}` : `, ${qta(r)} persone`) : "");
 }
 const giorniTesto = n => `${qta(n)} ${n === 1 ? (b.attUnit === "m" ? "mezza giornata" : "giornata") : (b.attUnit === "m" ? "mezze giornate" : "giornate")}`;
 const nomeNoleggio = n => n.desc.trim() || "noleggio";
@@ -155,7 +165,7 @@ function vociCliente(){
       const dett = v.modo === "incl" ? "Inclusa" : v.modo === "cons" ? (st > 0 ? `A consuntivo, circa ${eur(st)}` : "A consuntivo") : quantitaTesto(v, false);
       return {NOME: nomeVoce(id, v), DESCRIZIONE: s?.descrizione || "", RIF: rif, DETTAGLIO: dett,
         QUANTITA: v.modo === "tot" ? quantitaTesto(v, true) : (v.modo === "incl" ? quantitaTesto(v, true) : ""),
-        PREZZO: v.modo === "tot" && !v.esterna && v.unita !== "Forfait" ? eur(centesimi(v.prezzo) || 0) : "",
+        PREZZO: v.modo === "tot" && !v.esterna && v.unita !== "Forfait" ? prezzoTesto(v) : "",
         IMPORTO: v.modo === "incl" ? "Inclusa" : v.modo === "cons" ? (st > 0 ? "≈ " + eur(st) : "a consuntivo") : eur(imp)};
     });
     if (f === "prod" && t.a.on) voci.push({NOME: `Attrezzatura tecnica, ${t.a.cliente}`, DESCRIZIONE: b.attNota.trim(), RIF: "", DETTAGLIO: giorniTesto(t.a.g),
@@ -301,6 +311,13 @@ function esternaTesto(v){
   const c = esternaCalcolata(v), w = centesimi(v.cifra);
   return `+${qta(magg())}% = ${eur(c)}${w > 0 && w < c ? ` <span class="bad">sotto di ${eur(c - w)}</span>` : ""}`;
 }
+// Prezzo nella colonna del preventivo: con una mezza giornata, "300,00 € / 180,00 €" (giornata / mezza).
+function prezzoTesto(v){
+  const m = conMezza(v), g = eur(centesimi(v.prezzo) || 0);
+  if (!m) return g;
+  const mz = eur(centesimi(v.prezzoMezza) || 0);
+  return m.intere ? `${g} / ${mz}` : mz;
+}
 function importoTesto(v){
   if (v.modo === "incl") return "Inclusa";
   if (v.modo === "cons") return stimaCliente(v) > 0 ? "≈ " + eur(stimaCliente(v)) : "A consuntivo";
@@ -326,7 +343,8 @@ function voceHTML(id, s, v){
     corpo = `<label class="w-u"><span>Unità</span>${selezione(`data-qv="${esc(id)}" data-k="unita"`, unitaPossibili(s).map(u => [u, u]), v.unita)}</label>`;
     if (v.modo === "cons") corpo += campo("stima", "Stima, facoltativa (€)", "w-s", `placeholder="0,00"`);
     else if (v.modo === "tot") corpo += v.unita === "Forfait" ? campo("importo", "Importo (€)", "w-p", `placeholder="0,00"`)
-      : campo("qta", "Quantità", "w-n") + (v.unita === "Fisso" ? "" : campo("ris", "Risorse", "w-n")) + campo("prezzo", "Prezzo (€)", "w-p");
+      : campo("qta", "Quantità", "w-n") + (v.unita === "Fisso" ? "" : campo("ris", "Risorse", "w-n")) + campo("prezzo", v.unita === "Giornata" ? "Prezzo giornata (€)" : "Prezzo (€)", "w-p")
+        + (conMezza(v) ? campo("prezzoMezza", "Prezzo mezza (€)", "w-p", `placeholder="0,00"`) : "");
   }
   return `<div class="voce on">${testa}<div class="vbody">
     ${corpo}
@@ -594,6 +612,8 @@ function valida(id){
         if (v.unita === "Forfait"){ if (!(centesimi(v.importo) > 0)) return `${nome}: scrivi l’importo, oppure scegli Inclusa o A consuntivo.`; }
         else if (!(numero(v.qta) > 0) || !(centesimi(v.prezzo) >= 0 && v.prezzo !== "") || (v.unita !== "Fisso" && !(numero(v.ris) >= 1)))
           return `${nome}: compila ${v.unita === "Fisso" ? "quantità e prezzo" : "quantità, risorse e prezzo"}.`;
+        else if (v.unita === "Giornata" && !Number.isInteger(numero(v.qta) * 2)) return `${nome}: a giornata la quantità è intera o con una mezza (es. 1,5 o 2,5).`;
+        else if (conMezza(v) && !(centesimi(v.prezzoMezza) >= 0 && String(v.prezzoMezza ?? "") !== "")) return `${nome}: scrivi il prezzo della mezza giornata.`;
       }
       if (s?.notaObbligatoria && !v.nota.trim()) return `${nome}: compila la nota a piè di pagina, è obbligatoria.`;
     }
@@ -679,7 +699,16 @@ function campo(el){
         rr = true; fuoco = sel;
       } else if (k === "esterna"){ v.esterna = el.checked; rr = true; fuoco = sel; }
       else if (k === "fatt" || k === "modo"){ v[k] = el.value; rr = true; fuoco = `${sel}[value="${el.value}"]`; }
-      else v[k] = el.value;
+      else {
+        // Quando la quantità passa a una mezza (o la perde) compare o sparisce il prezzo della mezza.
+        const prima = !!conMezza(v);
+        v[k] = el.value;
+        if (k === "qta" && prima !== !!conMezza(v)){
+          const s = v.libera ? null : servizio(id);
+          if (v.prezzoMezza === undefined || v.prezzoMezza === "") v.prezzoMezza = s?.mezza != null ? cifraCampo(s.mezza) : "";
+          rr = true; fuoco = sel;
+        }
+      }
     }
   } else if (el.dataset.qitem !== undefined){
     const id = el.dataset.qitem;

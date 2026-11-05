@@ -149,6 +149,7 @@ Come nel prototipo.
 3. **Pre-produzione**, 4. **Produzione**, 7. **Post-produzione**: le voci del foglio Servizi della fase, più le voci libere. Ogni voce ha:
    - **Unità**: Giornata, Mezza giornata, Ora e Forfait sono sempre selezionabili; Fisso solo se Prezzo fisso ha un valore (anche 0). Il prezzo si precompila dal listino e si modifica; se manca, si scrive a mano.
    - **Campi**: quantità, risorse (persone) e prezzo; per Fisso solo quantità e prezzo; per Forfait solo l'importo.
+   - **Giornate con una mezza**: a Giornata la quantità può finire in ,5 (1,5 · 2,5…). Le giornate intere costano il prezzo di giornata, la mezza il prezzo di mezza giornata (campo "Prezzo mezza", precompilato dal listino): 1,5 = 300 + 180. Nel preventivo: "2 giornate e 1 mezza giornata", prezzo "300,00 € / 180,00 €". Altri decimali a Giornata non sono ammessi.
    - **Pagamento**, selettore a tre posizioni: Nel totale / Inclusa (0 €, scritto "Inclusa") / A consuntivo (fuori dal totale, con stima facoltativa).
    - **Spesa esterna**: casella che parte attiva se il foglio dice Sì. Al posto di unità e prezzo chiede il costo IVA inclusa, mostra costo × (1 + maggiorazione) e una "Cifra a preventivo" facoltativa per arrotondare. Se la cifra è sotto il calcolato lo segnala in rosso.
    - **Note**: se Nota obbligatoria = No, il testo di Nota si precompila come nota a piè di pagina modificabile; se = Sì, è il suggerimento di un campo che blocca l'avanzamento finché non è compilato. Le Note interne si mostrano solo a lui.
