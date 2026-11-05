@@ -243,7 +243,8 @@ export function cardBozza(){
 /* Riapre un preventivo salvato: tutti i passi sono già visitati. */
 registraApritore("PRV", (d, v, dati) => {
   const apri = () => {
-    b = Object.assign(BASE(), JSON.parse(JSON.stringify(dati)), {cli: dati.cli ?? d.cliente?.id ?? "", titolo: dati.titolo ?? d.titolo, edit: {codice: d.codice, v, cosa: "del preventivo"}, step: "cliente", visited: PASSI.map(p => p[0])});
+    b = Object.assign(BASE(), JSON.parse(JSON.stringify(dati)), {cli: dati.cli ?? d.cliente?.id ?? "", titolo: dati.titolo ?? d.titolo, edit: {codice: d.codice, v, cosa: "del preventivo"}, step: "cliente", visited: PASSI.map(p => p[0]),
+      dataPrev: oggi()});   // la nuova versione porta la data di oggi: la validità parte da qui
     delete b.conto; delete b.maggiorazione;
     salva();
     if (location.hash === "#preventivi-nuovo") window.dispatchEvent(new HashChangeEvent("hashchange")); else location.hash = "preventivi-nuovo";

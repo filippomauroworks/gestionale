@@ -144,7 +144,7 @@ Come nel prototipo.
    - breve descrizione per il cliente;
    - date di ripresa, facoltative: giorni singoli e intervalli ("dal … al …"), anche mescolati; i giorni si contano uno per uno (dal 20 al 23 = 4);
    - luogo, facoltativo;
-   - data del preventivo (oggi, modificabile);
+   - data del preventivo (oggi, modificabile; riaprendo con "Modifica" riparte da oggi, così la validità vale dalla nuova versione);
    - validità in giorni (30).
 3. **Pre-produzione**, 4. **Produzione**, 7. **Post-produzione**: le voci del foglio Servizi della fase, più le voci libere. Ogni voce ha:
    - **Unità**: Giornata, Mezza giornata, Ora e Forfait sono sempre selezionabili; Fisso solo se Prezzo fisso ha un valore (anche 0). Il prezzo si precompila dal listino e si modifica; se manca, si scrive a mano.
