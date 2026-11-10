@@ -14,22 +14,14 @@ import { rigaDocumento, linkDoc } from "./elenco.js";
 import { gestisciErrore, CollegamentoMancante } from "./errori.js";
 import { selezione, avanzamento } from "./procedura.js";
 import { centesimi, eur, cifraCampo } from "./calcoli.js";
+import { caricaPdfjs } from "./impagina.js";
 
-const PDFJS = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/";
 const NOTA_BASE = "Operazione in franchigia da IVA ai sensi dell’art. 1, commi 54-89, L. 190/2014 (regime forfettario). Imposta di bollo assolta in modo virtuale.";
 
 let C = null;        // clienti e conti dal foglio
 let D = null;        // dati letti e corretti nella verifica
 
 /* ---------- Lettura del PDF ---------- */
-let pdfjs = null;
-async function caricaPdfjs(){
-  if (!pdfjs){
-    pdfjs = await import(PDFJS + "pdf.min.mjs");
-    pdfjs.GlobalWorkerOptions.workerSrc = PDFJS + "pdf.worker.min.mjs";
-  }
-  return pdfjs;
-}
 
 /* Testo del PDF riga per riga: i pezzi con la stessa altezza formano una riga,
    ordinati da sinistra; dove c'è uno spazio largo si mette " | " (colonne).

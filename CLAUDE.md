@@ -181,6 +181,10 @@ Nel passo Attrezzatura c'è anche "Cosa include, per il cliente" (es. `1 camera,
 
 In fondo al preventivo: tabella a due colonne con CONDIZIONI a sinistra e totali a destra, poi le note a piè di pagina numerate a tutta larghezza e, se attiva, l'accettazione con le firme (vedi la Guida ai template).
 
+Impaginazione (`js/impagina.js`, 10 novembre 2026):
+- il titolo "NOTE" e le note hanno nel template "mantieni con il successivo": se non stanno nella pagina vanno tutti insieme alla successiva; dopo la compilazione l'ultima nota si stacca da ciò che segue;
+- l'accettazione finisce in fondo all'ultima pagina: dopo la compilazione l'app esporta il PDF, misura con pdf.js lo spazio libero sotto le firme, mette prima di "ACCETTAZIONE" una riga vuota e ne regola l'interlinea finché il blocco tocca il fondo senza passare alla pagina dopo (fino a 6 tentativi). Lo spazio sopra un paragrafo non basta: in cima a una pagina Google lo ignora. Il piè di pagina si riconosce come la riga più bassa della pagina (nel PDF "filippomauro.com" arriva spezzato dalla legatura "fi"). `generaDocumento` accetta un `ritocco` che può restituire il PDF già esportato.
+
 Il pannello laterale mostra i totali per fase, attrezzatura, noleggi, totale servizi, rivalsa, bollo, arrotondamento, totale, voci fuori dal totale e compenso Fiscozen.
 
 ### 5.2 Lista attrezzatura

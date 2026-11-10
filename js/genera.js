@@ -19,15 +19,19 @@ export async function cartellaCliente(archivioId, cliente){
 }
 
 /* Genera Doc e PDF. avanzamento(testo) racconta a che punto è.
+   ritocco(idDoc), facoltativo, sistema l'impaginazione dopo la compilazione e può
+   restituire il PDF già esportato (vedi impagina.js).
    Restituisce {doc, pdf, rimasti, link}: rimasti sono i segnaposto non sostituiti. */
-export async function generaDocumento({template, cartella, nome, dati}, avanzamento = () => {}){
+export async function generaDocumento({template, cartella, nome, dati, ritocco}, avanzamento = () => {}){
   avanzamento("Copio il template");
   const doc = await copia(template, nome, cartella);
   try {
     avanzamento("Compilo il documento");
     const {rimasti, link} = await applica(doc.id, dati);
+    if (ritocco) avanzamento("Sistemo l’impaginazione");
+    const pronto = ritocco ? await ritocco(doc.id) : null;
     avanzamento("Esporto il PDF");
-    const blob = await esportaPdf(doc.id);
+    const blob = pronto || await esportaPdf(doc.id);
     const pdf = await caricaFile(nome + ".pdf", cartella, blob, "application/pdf");
     return {doc, pdf, rimasti, link};
   } catch(e){

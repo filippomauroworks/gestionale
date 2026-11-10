@@ -67,7 +67,7 @@ Un solo template, il Documento Google "PRV — Preventivo dettagliato" (il nome 
 
 Kit e noleggi compaiono come voci di Produzione: `Attrezzatura tecnica, Kit Completo`, `Noleggio drone, da Rental X`. La riga dell'attrezzatura ha come `{{VOCE.DESCRIZIONE}}` la nota "Cosa include" scritta nella procedura (es. `1 camera, ottiche fisse, kit luci`).
 
-**Disposizione in fondo.** Dopo la tabella delle voci, una tabella a due colonne: a sinistra `CONDIZIONI` (condizioni, dicitura degli esclusi, frase sull'IVA), a destra i totali. Sotto, a tutta larghezza, il blocco `NOTE` con le note numerate: così le note lunghe non allungano la colonna delle condizioni. Per ultimo, se attivo, il blocco `ACCETTAZIONE` con le firme. Il testo della clausola sta nel Documento Google, non nel codice: per cambiarlo basta modificarlo lì.
+**Disposizione in fondo.** Dopo la tabella delle voci, una tabella a due colonne: a sinistra `CONDIZIONI` (condizioni, dicitura degli esclusi, frase sull'IVA), a destra i totali. Sotto, a tutta larghezza, il blocco `NOTE` con le note numerate: così le note lunghe non allungano la colonna delle condizioni. Per ultimo, se attivo, il blocco `ACCETTAZIONE` con le firme. Il testo della clausola sta nel Documento Google, non nel codice: per cambiarlo basta modificarlo lì. Il titolo `NOTE` e il paragrafo delle note hanno "mantieni con il successivo" (si spostano insieme); la riga vuota che porta l'accettazione in fondo alla pagina la aggiunge l'app dopo la compilazione, nel template non va messa.
 
 ## ATT — Lista attrezzatura lavoro
 

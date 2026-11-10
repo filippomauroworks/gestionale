@@ -9,6 +9,7 @@ import { clienti, listino, righeCliente } from "./anagrafiche.js";
 import { prossimoCodice, prossimaVersione, registra, documenti, trova, datiVersione, rileggi } from "./registro.js";
 import { cartellaCliente, generaDocumento } from "./genera.js";
 import { aggiornaJSON } from "./drive.js";
+import { allineaInFondo, staccaUltimaNota } from "./impagina.js";
 import { nomeFile, nomeCartellaCliente, slug } from "./nomi.js";
 import { rigaDocumento, filtra, linkDoc } from "./elenco.js";
 import { gestisciErrore, CollegamentoMancante } from "./errori.js";
@@ -806,7 +807,9 @@ async function genera(){
     passo("Preparo la cartella del cliente");
     const cartella = await cartellaCliente(f.archivioPreventivi.id, c);
     const dati = datiTemplate(codice), nome = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, versione: v});
-    const r = await generaDocumento({template: f.tplPrvDettagliato.id, cartella: cartella.id, nome, dati}, x => passo("Preventivo: " + x.toLowerCase()));
+    // Note tenute insieme; l'accettazione, se c'è, scende in fondo all'ultima pagina.
+    const ritocco = async idDoc => { await staccaUltimaNota(idDoc); return dati.ACCETTAZIONE ? allineaInFondo(idDoc, "ACCETTAZIONE") : null; };
+    const r = await generaDocumento({template: f.tplPrvDettagliato.id, cartella: cartella.id, nome, dati, ritocco}, x => passo("Preventivo: " + x.toLowerCase()));
     passo("Aggiorno il registro");
     const bozza = JSON.parse(JSON.stringify(b));
     ["step", "visited", "saved", "edit"].forEach(k => delete bozza[k]);
