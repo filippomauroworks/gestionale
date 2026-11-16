@@ -72,7 +72,7 @@ Tutti i prezzi nei fogli sono al netto della rivalsa del 4% e del bollo.
 | Archivio contratti | Contratti |
 | Archivio liste attrezzatura | Liste ATT |
 | Archivio copie di cortesia | Copie di cortesia |
-| Template | Gli 8 template, ciascuno scelto singolarmente, più il facoltativo "ATT — Lista senza intestazione" |
+| Template | Gli 8 template, ciascuno scelto singolarmente |
 
 In ogni archivio l'app crea una sottocartella per cliente chiamata `CLI-001 – Ragione sociale` e la ritrova tramite l'ID, così un cambio di ragione sociale non la perde. Per le liste senza cliente la sottocartella è "Lavori personali".
 
@@ -210,7 +210,7 @@ Il pannello laterale mostra i totali per fase, attrezzatura, noleggi, totale ser
 
    Il PDF della lista lavoro è per lui, con caselle vuote; quello del noleggio va a chi noleggia, con prezzi e totale.
 
-**Attrezzatura del cliente** (16 novembre 2026): nella lista per un lavoro, se il cliente scelto è Officina 38 e la scheda "Attrezzatura Officina 38" ha righe, il passo Dati chiede da quale lista compilare: **La loro** (predefinita), **La mia**, **Entrambe** (prima la sua, poi la loro, con i titoli "La tua attrezzatura" / "Attrezzatura di …"). Sotto c'è l'interruttore "PDF senza le mie informazioni" (acceso di default), che usa il template "ATT — Lista senza intestazione": copia della lista lavoro senza logo, dati suoi e sito, solo categorie e articoli. Con "Entrambe" nel PDF le categorie del cliente diventano `Lenti · Officina 38`. Sotto le categorie del cliente non c'è "Aggiungi a mano". Cambiando cliente o lista, gli articoli che non si vedono più vengono tolti. Le liste salvate prima di questa modifica si riaprono con "La mia". I loro articoli non passano al preventivo con "Importa da una lista ATT" (non hanno prezzo).
+**Attrezzatura del cliente** (16 novembre 2026): nella lista per un lavoro, se il cliente scelto è Officina 38 e la scheda "Attrezzatura Officina 38" ha righe, il passo Dati chiede da quale lista compilare: **La loro** (predefinita), **La mia**, **Entrambe** (prima la sua, poi la loro, con i titoli "La tua attrezzatura" / "Attrezzatura di …"). Sotto c'è l'interruttore "PDF senza le mie informazioni" (acceso di default): si usa il solito template della lista lavoro e, dopo la compilazione, l'app toglie dalla tabella in cima logo, nome e qualifica (`togliIntestazione` in `js/impagina.js`); restano titolo, numero, cliente, date e luogo, allineati a sinistra. Nessun template a parte. Con "Entrambe" nel PDF le categorie del cliente diventano `Lenti · Officina 38`. Sotto le categorie del cliente non c'è "Aggiungi a mano". Cambiando cliente o lista, gli articoli che non si vedono più vengono tolti. Le liste salvate prima di questa modifica si riaprono con "La mia". I loro articoli non passano al preventivo con "Importa da una lista ATT" (non hanno prezzo).
 
 **Scelte fatte nello sviluppo (punto 3)**
 

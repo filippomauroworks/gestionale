@@ -104,3 +104,20 @@ export async function staccaUltimaNota(id){
   if (ultima) await modifica(id, [{updateParagraphStyle: {range: {startIndex: ultima.startIndex, endIndex: ultima.endIndex},
     paragraphStyle: {keepWithNext: false}, fields: "keepWithNext"}}]);
 }
+
+/* Lista per Officina 38 senza i dati di Filippo: nella tabella in cima (logo · nome e qualifica · titolo
+   della lista) restano solo il titolo, il numero e il cliente, allineati a sinistra. Il piè di pagina della
+   lista ("3 articoli · uso interno") non ha dati suoi e resta. */
+export async function togliIntestazione(id){
+  const doc = await leggi(id);
+  const tab = doc.body.content.find(el => el.table);
+  if (!tab || tab.table.columns < 3) return null;
+  const loc = c => ({tableCellLocation: {tableStartLocation: {index: tab.startIndex}, rowIndex: 0, columnIndex: c}});
+  await modifica(id, [{deleteTableColumn: loc(1)}, {deleteTableColumn: loc(0)}]);
+  // Il titolo e la riga sotto (date e luogo) erano allineati a destra, accanto al logo: ora a sinistra.
+  const corpo = (await leggi(id)).body.content, i = corpo.findIndex(el => el.table);
+  const cella = corpo[i]?.table.tableRows[0].tableCells[0], sotto = corpo[i + 1]?.paragraph ? corpo[i + 1] : null;
+  const sinistra = el => ({updateParagraphStyle: {range: {startIndex: el.startIndex, endIndex: el.endIndex}, paragraphStyle: {alignment: "START"}, fields: "alignment"}});
+  await modifica(id, [cella, sotto].filter(Boolean).map(sinistra));
+  return null;
+}

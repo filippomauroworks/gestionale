@@ -22,7 +22,6 @@ export const COLLEGAMENTI = [
   {gruppo: "Template", voci: [
     {k: "tplPrvDettagliato", tipo: "documento", nome: "PRV — Preventivo"},
     {k: "tplAttLavoro", tipo: "documento", nome: "ATT — Lista attrezzatura lavoro"},
-    {k: "tplAttSenzaIntestazione", tipo: "documento", nome: "ATT — Lista senza intestazione", det: "Facoltativo: per le liste con l’attrezzatura di un cliente"},
     {k: "tplAttNoleggio", tipo: "documento", nome: "ATT — Noleggio a terzi"},
     {k: "tplCtr", tipo: "documento", nome: "CTR — Contratto"},
     {k: "tplCdc", tipo: "documento", nome: "CDC — Copia di cortesia"},

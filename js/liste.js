@@ -7,6 +7,7 @@ import { stato } from "./dati.js";
 import { clienti, listino, righeCliente, ricarica, eClienteEsterno } from "./anagrafiche.js";
 import { prossimoCodice, prossimaVersione, registra, documenti, trova, datiVersione } from "./registro.js";
 import { cartellaCliente, generaDocumento } from "./genera.js";
+import { togliIntestazione } from "./impagina.js";
 import { cercaPerNome, creaCartella, cestina, MIME_CARTELLA } from "./drive.js";
 import { articoloManuale, elencoManuali, nuovoManuale, togliManuale, copiaManuali, erroreManuali, campoNome, campoPrezzo, tastoTogli, tastoAggiungi } from "./manuali.js";
 import { nomeFile, nomeCartellaCliente } from "./nomi.js";
@@ -234,7 +235,7 @@ function passoHTML(){
           ${opzione(A, "fonte", "loro", b.fonte, "La loro", `Solo l’attrezzatura di ${esc(nomeBreve())}`)}
           ${opzione(A, "fonte", "mia", b.fonte, "La mia", "Solo il tuo inventario")}
           ${opzione(A, "fonte", "entrambe", b.fonte, "Entrambe", "Prima la tua, poi la loro")}
-          ${interruttore(A, "senzaInt", b.senzaInt, "PDF senza le mie informazioni", "Usa il template senza logo né dati tuoi: solo categorie e articoli")}` : ""}
+          ${interruttore(A, "senzaInt", b.senzaInt, "PDF senza le mie informazioni", "Toglie in alto logo, nome e qualifica: restano titolo della lista, categorie e articoli")}` : ""}
         ${campoDate("a", b.date, "Date di ripresa")}
         <label class="f"><span>Luogo</span><input class="inp" ${A}="luogo" value="${esc(b.luogo)}" placeholder="Es. Torino"></label>
         <label class="f"><span>Note (facoltative)</span><textarea class="inp" ${A}="note" placeholder="Es. Ricaricare le batterie V-mount la sera prima">${esc(b.note)}</textarea></label>`;
@@ -441,10 +442,10 @@ async function genera(){
     if (m){ b.step = id; if (!b.visited.includes(id)) b.visited.push(id); salva(); await vistaProcedura($("#view")); $("#err").textContent = m; return; }
   }
   const f = stato.impostazioni.file, nol = b.kind === "noleggio";
-  const tpl = nol ? f.tplAttNoleggio : senzaIntestazione() ? f.tplAttSenzaIntestazione : f.tplAttLavoro;
+  const tpl = nol ? f.tplAttNoleggio : f.tplAttLavoro;
   try {
     if (!f.archivioListe) throw new CollegamentoMancante("Archivio liste attrezzatura");
-    if (!tpl) throw new CollegamentoMancante(nol ? "Template ATT — Noleggio a terzi" : senzaIntestazione() ? "Template ATT — Lista senza intestazione" : "Template ATT — Lista attrezzatura lavoro");
+    if (!tpl) throw new CollegamentoMancante(nol ? "Template ATT — Noleggio a terzi" : "Template ATT — Lista attrezzatura lavoro");
     const passo = avanzamento("Genero la lista");
     passo("Assegno il codice");
     const codice = b.edit?.codice || b.fromPrv || await prossimoCodice(), c = cliente();
@@ -452,7 +453,8 @@ async function genera(){
     passo("Preparo la cartella del cliente");
     const cartella = await cartellaCliente(f.archivioListe.id, c);
     const nome = nomeFile({codice, tipo: "ATT", titolo: titolo(), cliente: c?.nome, versione: v});
-    const r = await generaDocumento({template: tpl.id, cartella: cartella.id, nome, dati: datiTemplate(codice)}, passo);
+    const ritocco = !nol && senzaIntestazione() ? togliIntestazione : null;
+    const r = await generaDocumento({template: tpl.id, cartella: cartella.id, nome, dati: datiTemplate(codice), ritocco}, passo);
     passo("Aggiorno il registro");
     const t = nol ? conto() : null;
     const dati = JSON.parse(JSON.stringify(b));
