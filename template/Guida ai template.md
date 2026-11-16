@@ -84,7 +84,7 @@ Kit e noleggi compaiono come voci di Produzione: `Attrezzatura tecnica, Kit Comp
 
 ## ATT — Lista senza intestazione
 
-Facoltativo. Per le liste fatte con l'attrezzatura di un cliente (es. Officina38), da mandare senza i dati di Filippo. È una copia di "ATT — Lista attrezzatura lavoro" (File → Crea una copia) da cui si tolgono logo, nome, dati personali e il sito nel piè di pagina. Restano gli stessi segnaposto della lista lavoro; quelli che si tolgono insieme all'intestazione (es. `{{NUMERO}}`, `{{CLIENTE_NOME}}`) non danno problemi. Si collega in Impostazioni → Template.
+Facoltativo. Per le liste fatte con l’attrezzatura di Officina 38 (scheda "Attrezzatura Officina 38" del listino), da mandare senza i dati di Filippo. È una copia di "ATT — Lista attrezzatura lavoro" (File → Crea una copia) da cui si tolgono logo, nome, dati personali e il sito nel piè di pagina. Restano gli stessi segnaposto della lista lavoro; quelli che si tolgono insieme all'intestazione (es. `{{NUMERO}}`, `{{CLIENTE_NOME}}`) non danno problemi. Si collega in Impostazioni → Template.
 
 ## ATT — Noleggio a terzi
 

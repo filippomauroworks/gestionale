@@ -4,7 +4,7 @@
 
 import { $, esc, store, toast, modal, closeModal } from "./util.js";
 import { stato } from "./dati.js";
-import { clienti, listino, righeCliente, ricarica } from "./anagrafiche.js";
+import { clienti, listino, righeCliente, ricarica, eClienteEsterno } from "./anagrafiche.js";
 import { prossimoCodice, prossimaVersione, registra, documenti, trova, datiVersione } from "./registro.js";
 import { cartellaCliente, generaDocumento } from "./genera.js";
 import { cercaPerNome, creaCartella, cestina, MIME_CARTELLA } from "./drive.js";
@@ -35,9 +35,9 @@ async function caricaFogli(){ [L, C] = await Promise.all([listino(), clienti()])
 const articolo = id => L.articoli.find(a => a.id === id) || L.esterni.find(a => a.id === id) || (b.manuali[id] && articoloManuale(id, b.manuali[id]));
 const cliente = () => b.cli ? C.clienti.find(c => c.id === b.cli) || null : null;
 
-/* Attrezzatura del cliente (scheda "Attrezzatura clienti", es. Officina38): solo nelle liste per un lavoro.
+/* Attrezzatura di Officina 38 (scheda "Attrezzatura Officina 38" del listino): solo nelle liste per un lavoro con quel cliente.
    fonte: "mia" (il mio inventario), "loro" (solo la loro), "entrambe". */
-const esterni = () => b.kind === "lavoro" && b.cli ? L.esterni.filter(a => a.cli === b.cli) : [];
+const esterni = () => b.kind === "lavoro" && eClienteEsterno(cliente()) ? L.esterni : [];
 const conEsterna = () => esterni().length > 0;
 const fonte = () => conEsterna() ? b.fonte : "mia";
 const senzaIntestazione = () => conEsterna() && b.senzaInt;

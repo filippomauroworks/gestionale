@@ -11,7 +11,7 @@ export const NOME_CARTELLA = "Gestionale FM — dati";
 export const COLLEGAMENTI = [
   {gruppo: "Fogli Google", voci: [
     {k: "sheetClienti", tipo: "foglio", nome: "Sheet Clienti", det: "Schede Clienti e Conti"},
-    {k: "sheetAttrezzatura", tipo: "foglio", nome: "Sheet Attrezzatura", det: "Attrezzatura, categorie, servizi, kit e attrezzatura clienti"}
+    {k: "sheetAttrezzatura", tipo: "foglio", nome: "Sheet Attrezzatura", det: "Attrezzatura, categorie, servizi, kit e attrezzatura di Officina 38"}
   ]},
   {gruppo: "Cartelle archivio", voci: [
     {k: "archivioPreventivi", tipo: "cartella", nome: "Archivio preventivi"},

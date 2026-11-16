@@ -18,12 +18,12 @@ export const SCHEMI = {
     "Servizi": ["ID", "Nome", "Categoria", "Prezzo giornata", "Prezzo mezza giornata", "Prezzo orario", "Prezzo fisso", "Unità predefinita", "Spesa esterna", "Descrizione per il cliente", "Nota", "Nota obbligatoria", "Nel listino", "Attivo", "Note interne"],
     "Categorie servizi": ["Categoria", "Ordine", "Prefisso ID", "Prossimo ID"],
     "Kit": ["Livello", "Nome", "Descrizione per il cliente", "Soglia giornata", "Prezzo giornata", "Soglia mezza giornata", "Prezzo mezza giornata", "Attivo", "Note interne"],
-    "Attrezzatura clienti": ["Cliente", "Nome", "Categoria", "Quantità", "Attivo", "Note interne"]
+    "Attrezzatura Officina 38": ["Categoria", "Prodotto", "Quantità"]
   }
 };
 
 // Schede che possono mancare: se non ci sono, nessun problema (se ci sono, le colonne devono esserci).
-export const FACOLTATIVE = new Set(["Attrezzatura clienti"]);
+export const FACOLTATIVE = new Set(["Attrezzatura Officina 38"]);
 
 // Confronto tollerante: maiuscole, spazi doppi e spazi ai lati non contano.
 const norm = s => String(s ?? "").normalize("NFC").trim().replace(/\s+/g, " ").toLowerCase();
