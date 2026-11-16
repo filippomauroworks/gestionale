@@ -18,7 +18,7 @@ import { numero, centesimi, eur, eurSegno, cifraCampo, qta, totali, fiscozen, sc
 
 /* ---------- Bozza ---------- */
 const BKEY = "fm-bozza-lista-v1";
-const BASE = () => ({step: "tipo", visited: ["tipo"], kind: "lavoro", fromPrv: "", cli: "", titolo: "", date: [{da: "", a: "", intervallo: false}], luogo: "", note: "",
+const BASE = () => ({step: "tipo", visited: ["tipo"], kind: "lavoro", fromPrv: "", cli: "", fonte: "loro", senzaInt: true, titolo: "", date: [{da: "", a: "", intervallo: false}], luogo: "", note: "",
   ritiro: "", riconsegna: "", giorni: "", items: {}, manuali: {}, nMan: 0, noleggi: [], filter: "", noRound: true, cifra: "", edit: null, saved: null});
 let b = store.get(BKEY, null);
 if (b) b = Object.assign(BASE(), b);
@@ -32,10 +32,33 @@ const passi = () => ["tipo", "dati", "articoli", ...(b.kind === "noleggio" ? ["t
 let L = null, C = null;
 async function caricaFogli(){ [L, C] = await Promise.all([listino(), clienti()]); }
 
-const articolo = id => L.articoli.find(a => a.id === id) || (b.manuali[id] && articoloManuale(id, b.manuali[id]));
-const tutti = () => [...L.articoli, ...elencoManuali(b)];   // foglio e articoli scritti a mano
-const disponibili = () => tutti().filter(a => a.attivo && (b.kind !== "noleggio" || a.noleggiabile));
+const articolo = id => L.articoli.find(a => a.id === id) || L.esterni.find(a => a.id === id) || (b.manuali[id] && articoloManuale(id, b.manuali[id]));
 const cliente = () => b.cli ? C.clienti.find(c => c.id === b.cli) || null : null;
+
+/* Attrezzatura del cliente (scheda "Attrezzatura clienti", es. Officina38): solo nelle liste per un lavoro.
+   fonte: "mia" (il mio inventario), "loro" (solo la loro), "entrambe". */
+const esterni = () => b.kind === "lavoro" && b.cli ? L.esterni.filter(a => a.cli === b.cli) : [];
+const conEsterna = () => esterni().length > 0;
+const fonte = () => conEsterna() ? b.fonte : "mia";
+const senzaIntestazione = () => conEsterna() && b.senzaInt;
+const nomeBreve = () => { const c = cliente(); return c ? String(c.nome).replace(/\s+(s\.?r\.?l\.?s?|s\.?p\.?a\.?|s\.?a\.?s\.?|s\.?n\.?c\.?)\s*$/i, "").trim() : ""; };
+
+// Gruppi della lista, in ordine: le mie categorie, poi quelle del cliente (ordine del foglio).
+function gruppi(){
+  const f = fonte(), g = [];
+  if (f !== "loro") L.categorie.forEach(c => g.push({chiave: c, nome: c, esterna: false}));
+  if (f !== "mia") for (const a of esterni()) if (!g.some(x => x.chiave === a.cat)) g.push({chiave: a.cat, nome: a.catNome, esterna: true});
+  return g;
+}
+const tutti = () => [...L.articoli, ...esterni(), ...elencoManuali(b)];   // foglio, cliente e articoli scritti a mano
+const disponibili = () => { const ch = new Set(gruppi().map(g => g.chiave)); return tutti().filter(a => a.attivo && ch.has(a.cat) && (b.kind !== "noleggio" || a.noleggiabile)); };
+
+// Toglie gli articoli che con la scelta attuale (tipo, cliente, attrezzatura) non si vedono più.
+function pota(){
+  const ch = new Set(gruppi().map(g => g.chiave));
+  Object.keys(b.manuali).forEach(id => { if (!ch.has(b.manuali[id].cat)) togliManuale(b, id); });
+  Object.keys(b.items).forEach(id => { const a = articolo(id); if (!a || !ch.has(a.cat) || (b.kind === "noleggio" && !a.noleggiabile)) delete b.items[id]; });
+}
 const giorniDefault = () => b.ritiro && b.riconsegna ? Math.max(1, giorniTra(b.ritiro, b.riconsegna)) : 1;
 const giorni = () => numero(b.giorni !== "" ? b.giorni : giorniDefault()) || 0;
 const pezzi = () => Object.values(b.items).reduce((s, x) => s + (numero(x.qta) || 0), 0) + b.noleggi.reduce((s, n) => s + (numero(n.qta) || 0), 0);
@@ -43,8 +66,8 @@ const pezzi = () => Object.values(b.items).reduce((s, x) => s + (numero(x.qta) |
 // Articoli scelti nell'ordine delle categorie, poi del foglio.
 function scelti(){
   const out = [];
-  for (const cat of L.categorie) for (const a of tutti())
-    if (a.cat === cat && b.items[a.id]) out.push({a, q: numero(b.items[a.id].qta) || 0});
+  for (const g of gruppi()) for (const a of tutti())
+    if (a.cat === g.chiave && b.items[a.id]) out.push({a, q: numero(b.items[a.id].qta) || 0, g});
   return out;
 }
 
@@ -96,7 +119,7 @@ export function cardBozza(){
 /* Riapre una lista salvata: tutti i passi sono già visitati. */
 registraApritore("ATT", (d, v, dati) => {
   const apri = () => {
-    b = Object.assign(BASE(), JSON.parse(JSON.stringify(dati)), {cli: dati.cli ?? d.cliente?.id ?? "", titolo: dati.titolo ?? d.titolo, edit: {codice: d.codice, v, cosa: "della lista"}, step: "tipo", visited: ["tipo", "dati", "articoli", "totale", "riep"]});
+    b = Object.assign(BASE(), {fonte: "mia"}, JSON.parse(JSON.stringify(dati)), {cli: dati.cli ?? d.cliente?.id ?? "", titolo: dati.titolo ?? d.titolo, edit: {codice: d.codice, v, cosa: "della lista"}, step: "tipo", visited: ["tipo", "dati", "articoli", "totale", "riep"]});
     salva();
     if (location.hash === "#attrezzatura-nuova") window.dispatchEvent(new HashChangeEvent("hashchange")); else location.hash = "attrezzatura-nuova";
   };
@@ -124,8 +147,8 @@ export async function vistaProcedura(view){
     return;
   }
   b.date = normalizzaDate(b.date); if (!b.date.length) b.date = BASE().date;
-  // Articoli che non esistono più nel foglio: via dalla bozza.
-  Object.keys(b.items).forEach(id => { if (!articolo(id)) delete b.items[id]; });
+  // Articoli che non esistono più nel foglio, o che con la scelta attuale non si vedono: via dalla bozza.
+  pota();
   if (!passi().includes(b.step)) b.step = "articoli";
   const st = passi(), i = st.indexOf(b.step), ultimo = i === st.length - 1;
   view.innerHTML = `<div class="wiz"><div class="wiz-main">
@@ -152,7 +175,8 @@ function riquadroArticoli(){
     const t = conto();
     return `<div class="kpi"><div><small>Articoli</small><strong>${n}</strong><span>${p} ${p === 1 ? "pezzo" : "pezzi"} in tutto</span></div><div><small>Al giorno</small><strong>${eur(t.alGiorno)}</strong><span>prezzi di noleggio</span></div><div><small>Per ${qta(t.g)} ${t.g === 1 ? "giorno" : "giorni"}</small><strong>${eur(t.sub - t.sconto)}</strong><span>${t.sc ? `sconto ${t.sc}% compreso` : "nessuno sconto"}</span></div></div>`;
   }
-  return `<div class="kpi"><div><small>Articoli</small><strong>${n}</strong><span>dal tuo inventario</span></div><div><small>Pezzi in tutto</small><strong>${p}</strong><span>da spuntare sul set</span></div><div><small>Noleggio esterno</small><strong>${b.noleggi.length}</strong><span>${b.noleggi.length === 1 ? "articolo" : "articoli"}</span></div></div>`;
+  const da = {mia: "dal tuo inventario", loro: "di " + esc(nomeBreve()), entrambe: "tuoi e di " + esc(nomeBreve())}[fonte()];
+  return `<div class="kpi"><div><small>Articoli</small><strong>${n}</strong><span>${da}</span></div><div><small>Pezzi in tutto</small><strong>${p}</strong><span>da spuntare sul set</span></div><div><small>Noleggio esterno</small><strong>${b.noleggi.length}</strong><span>${b.noleggi.length === 1 ? "articolo" : "articoli"}</span></div></div>`;
 }
 
 function riquadroTotale(){
@@ -206,19 +230,27 @@ function passoHTML(){
       : `<h2 class="field-q">Il lavoro</h2><p class="hint">${b.fromPrv ? `Dati ripresi dal preventivo ${esc(b.fromPrv)}: controllali.` : "Cliente, date e luogo sono facoltativi."}</p>
         <label class="f"><span>Titolo del lavoro</span><input class="inp" ${A}="titolo" value="${esc(b.titolo)}" placeholder="Es. Convention di fine anno"></label>
         <label class="f"><span>Cliente</span>${selezione(`${A}="cli" style="max-width:420px"`, [["", "Lavoro personale"], ...opzClienti], b.cli)}</label>
+        ${conEsterna() ? `<h3 class="grp">Attrezzatura</h3><p class="hint">${esc(nomeBreve())} ha la sua attrezzatura nel foglio: scegli da quale lista compilare.</p>
+          ${opzione(A, "fonte", "loro", b.fonte, "La loro", `Solo l’attrezzatura di ${esc(nomeBreve())}`)}
+          ${opzione(A, "fonte", "mia", b.fonte, "La mia", "Solo il tuo inventario")}
+          ${opzione(A, "fonte", "entrambe", b.fonte, "Entrambe", "Prima la tua, poi la loro")}
+          ${interruttore(A, "senzaInt", b.senzaInt, "PDF senza le mie informazioni", "Usa il template senza logo né dati tuoi: solo categorie e articoli")}` : ""}
         ${campoDate("a", b.date, "Date di ripresa")}
         <label class="f"><span>Luogo</span><input class="inp" ${A}="luogo" value="${esc(b.luogo)}" placeholder="Es. Torino"></label>
         <label class="f"><span>Note (facoltative)</span><textarea class="inp" ${A}="note" placeholder="Es. Ricaricare le batterie V-mount la sera prima">${esc(b.note)}</textarea></label>`;
 
     case "articoli": {
       const lista = disponibili(), f = b.filter.toLowerCase();
-      return `<h2 class="field-q">${nol ? "Cosa noleggi" : "Cosa porti"}</h2><p class="hint">${nol ? "Solo gli articoli noleggiabili. Quelli a prezzo 0 risultano inclusi." : "Spunta gli articoli e indica quanti pezzi. Il massimo è quello che hai in inventario."} Quello che non è nel foglio lo aggiungi a mano sotto la sua categoria.</p>
+      const sezioni = fonte() === "entrambe";
+      return `<h2 class="field-q">${nol ? "Cosa noleggi" : "Cosa porti"}</h2><p class="hint">${nol ? "Solo gli articoli noleggiabili. Quelli a prezzo 0 risultano inclusi." : "Spunta gli articoli e indica quanti pezzi. Il massimo è quello che c’è in inventario."} Quello che non è nel foglio lo aggiungi a mano sotto la sua categoria${fonte() !== "mia" ? " (solo nelle tue)" : ""}.</p>
         <div id="aSum">${riquadroArticoli()}</div>
         <input class="search" type="search" placeholder="Cerca un articolo" data-afilter value="${esc(b.filter)}" aria-label="Cerca un articolo" style="margin-bottom:8px">
-        <div class="inv">${L.categorie.map(cat => {
-          const its = lista.filter(a => a.cat === cat);
+        <div class="inv">${gruppi().map((g, gi, tutteG) => {
+          const cat = g.chiave, its = lista.filter(a => a.cat === cat);
           if (!its.length) return "";
-          return `<h3 class="grp" data-acat="${esc(cat)}">${esc(cat)}</h3>${its.map(a => {
+          const primaDelGruppo = sezioni && !tutteG.slice(0, gi).some(x => x.esterna === g.esterna);
+          const titoloSez = primaDelGruppo ? `<h2 class="field-q" style="margin-top:${g.esterna ? 32 : 8}px">${g.esterna ? "Attrezzatura di " + esc(nomeBreve()) : "La tua attrezzatura"}</h2>` : "";
+          return `${titoloSez}<h3 class="grp" data-acat="${esc(cat)}">${esc(g.nome)}</h3>${its.map(a => {
             const x = b.items[a.id], nascondi = f && !(a.nome + " " + a.id).toLowerCase().includes(f);
             if (a.manuale){
               const m = b.manuali[a.id];
@@ -234,10 +266,10 @@ function passoHTML(){
               <input type="checkbox" id="ai-${esc(a.id)}" data-aitem="${esc(a.id)}" data-k="on" ${x ? "checked" : ""}>
               <label for="ai-${esc(a.id)}">${esc(a.nome)} <small class="muted">${esc(a.id)}</small></label>
               <span class="muted">${nol ? (a.noleggio > 0 ? eur(a.noleggio) : "incluso") : ""}</span>
-              <span class="muted av">su ${a.q}</span>
+              <span class="muted av">${a.q === Infinity ? "" : "su " + a.q}</span>
               ${x ? `<input class="inp" inputmode="numeric" data-aitem="${esc(a.id)}" data-k="qta" value="${esc(x.qta)}" aria-label="Quantità ${esc(a.nome)}">` : "<span></span>"}
             </div>`;
-          }).join("")}${tastoAggiungi("a-manadd", cat, "data-aname")}`;
+          }).join("")}${g.esterna ? "" : tastoAggiungi("a-manadd", cat, "data-aname")}`;
         }).join("")}</div>
         ${nol ? "" : noleggiEsterniHTML()}`;
     }
@@ -281,6 +313,7 @@ function riepilogo(){
     <dt>Titolo</dt><dd>${titolo() ? esc(titolo()) : trattino}</dd>
     ${b.kind === "noleggio" ? `<dt>Periodo</dt><dd>${b.ritiro && b.riconsegna ? `${dataBreve(b.ritiro)} → ${dataBreve(b.riconsegna)}, ${qta(giorni())} gg` : trattino}</dd>`
       : `<dt>Riprese</dt><dd>${date ? esc(date) : "Da definire"}${b.luogo ? ", " + esc(b.luogo) : ""}</dd>`}
+    ${conEsterna() ? `<dt>Attrezzatura</dt><dd>${{mia: "La tua", loro: "Di " + esc(nomeBreve()), entrambe: "Tua e di " + esc(nomeBreve())}[fonte()]}${senzaIntestazione() ? ", PDF senza intestazione" : ""}</dd>` : ""}
     <dt>Articoli</dt><dd>${Object.keys(b.items).length} (${pezzi()} pezzi)${b.noleggi.length ? `, ${b.noleggi.length} a noleggio` : ""}</dd>
     ${b.kind === "noleggio" ? `<dt>Totale</dt><dd>${conto().servizi > 0 ? eur(conto().voluto) : trattino}</dd>` : ""}
   </dl>`;
@@ -302,7 +335,7 @@ function valida(id){
     for (const [id, x] of Object.entries(b.items)){
       const a = articolo(id), q = numero(x.qta);
       if (!(q > 0) || !Number.isInteger(q)) return `${a.nome || "Articolo aggiunto a mano"}: indica la quantità.`;
-      if (q > a.q) return `${a.nome}: in inventario ne hai ${a.q}.`;
+      if (q > a.q) return `${a.nome}: in inventario ${a.esterno ? "ne hanno" : "ne hai"} ${a.q}.`;
     }
     const em = erroreManuali(b, b.kind === "noleggio" ? "noleggio" : null); if (em) return em;
     if (b.noleggi.some(n => !n.nome.trim())) return "Noleggio esterno: scrivi il nome dell’articolo, oppure toglilo.";
@@ -328,13 +361,13 @@ function ridisegna(fuoco){
 }
 const vaiAlPasso = id => { b.step = id; if (!b.visited.includes(id)) b.visited.push(id); salva(); vistaProcedura($("#view")); };
 
-const RIDISEGNA = ["kind", "fromPrv", "cli", "noRound", "ritiro", "riconsegna"];
+const RIDISEGNA = ["kind", "fromPrv", "cli", "fonte", "noRound", "ritiro", "riconsegna"];
 
 // Riprende cliente, titolo, date, luogo, articoli e noleggi esterni da un preventivo in archivio.
 async function daPreventivo(codice){
   try {
     const d = trova(codice, "PRV"), p = await datiVersione(d);
-    Object.assign(b, {fromPrv: codice, cli: d.cliente?.id || "", titolo: d.titolo, date: normalizzaDate(p.date).length ? normalizzaDate(p.date) : BASE().date, luogo: p.luogo || ""});
+    Object.assign(b, {fromPrv: codice, fonte: "mia", cli: d.cliente?.id || "", titolo: d.titolo, date: normalizzaDate(p.date).length ? normalizzaDate(p.date) : BASE().date, luogo: p.luogo || ""});
     b.items = {};
     copiaManuali(p.attMode === "lista" ? p : null, b);
     if (p.attMode === "lista") Object.entries(p.items || {}).forEach(([id, x]) => { if (articolo(id)) b.items[id] = {qta: x.qta}; });
@@ -361,7 +394,8 @@ function campo(el){
   else {
     const f = el.getAttribute(A);
     b[f] = el.hasAttribute("data-bool") ? el.checked : el.value;
-    if (f === "kind" && el.value === "noleggio"){ b.fromPrv = ""; Object.keys(b.items).forEach(id => { if (!articolo(id).noleggiabile) delete b.items[id]; }); }
+    if (f === "kind" && el.value === "noleggio") b.fromPrv = "";
+    if (f === "kind" || f === "cli" || f === "fonte") pota();
     if (f === "fromPrv" && el.value){ salva(); daPreventivo(el.value); return; }
     if (f === "ritiro" || f === "riconsegna") b.giorni = "";
     if (RIDISEGNA.includes(f)){ rr = true; fuoco = el.type === "radio" ? `[${A}="${f}"][value="${el.value}"]` : `[${A}="${f}"]`; }
@@ -380,19 +414,21 @@ function filtroArticoli(q){
 /* ---------- Generazione della lista ---------- */
 function datiTemplate(codice){
   const c = cliente(), nol = b.kind === "noleggio";
-  const gruppi = L.categorie.map(cat => ({cat, el: scelti().filter(x => x.a.cat === cat)})).filter(g => g.el.length);
+  // Con "entrambe" le categorie del cliente portano il suo nome, per non confonderle con le mie.
+  const etichetta = g => g.esterna && fonte() === "entrambe" ? `${g.nome} · ${nomeBreve()}` : g.nome;
+  const gr = gruppi().map(g => ({cat: etichetta(g), el: scelti().filter(x => x.a.cat === g.chiave)})).filter(g => g.el.length);
   const comuni = {NUMERO: codice, DATA: dataLunga(oggi()), TITOLO: titolo(), ETICHETTA_4: stato.impostazioni.etichetta4, ...righeCliente(c)};
   if (!nol){
     const info = [elencoDate(b.date), b.luogo.trim()].filter(Boolean).join(" · ");
     return {...comuni, CLIENTE_NOME: c ? c.nome : "Lavoro personale", INFO_LAVORO: info,
-      CAT: gruppi.map(g => ({NOME: g.cat, CONTEGGIO: String(g.el.reduce((s, x) => s + x.q, 0)), ART: g.el.map(x => ({QTA: String(x.q), NOME: x.a.nome}))})),
+      CAT: gr.map(g => ({NOME: g.cat, CONTEGGIO: String(g.el.reduce((s, x) => s + x.q, 0)), ART: g.el.map(x => ({QTA: String(x.q), NOME: x.a.nome}))})),
       NOLEGGI: b.noleggi.length > 0,
       NOL: b.noleggi.map(n => ({QTA: String(numero(n.qta) || 1), NOME: n.nome.trim(), FORNITORE: n.fornitore.trim(), CHI_PAGA: n.paga === "cliente" ? "Paga il cliente" : "Pago io"})),
       NOTE_LISTA: b.note.trim(), N_ARTICOLI: String(pezzi())};
   }
   const t = conto();
   return {...comuni, RITIRO: dataLunga(b.ritiro), RICONSEGNA: dataLunga(b.riconsegna), GIORNI: qta(t.g),
-    CAT: gruppi.map(g => ({NOME: g.cat, ART: g.el.map(x => ({QTA: String(x.q), NOME: x.a.nome,
+    CAT: gr.map(g => ({NOME: g.cat, ART: g.el.map(x => ({QTA: String(x.q), NOME: x.a.nome,
       PREZZO: x.a.noleggio > 0 ? eur(x.a.noleggio) : "incluso", IMPORTO: x.a.noleggio > 0 ? eur(x.a.noleggio * x.q * t.g) : ""}))})),
     SUBTOTALE: eur(t.sub), SCONTO_PERC: t.sc + "%", SCONTO: t.sc ? eurSegno(t.sconto) : "",
     RIVALSA: eur(t.riv), BOLLO: t.bollo ? eur(t.bollo) : "", ARROTONDAMENTO: t.arr ? eurSegno(t.arr) : "",
@@ -405,10 +441,10 @@ async function genera(){
     if (m){ b.step = id; if (!b.visited.includes(id)) b.visited.push(id); salva(); await vistaProcedura($("#view")); $("#err").textContent = m; return; }
   }
   const f = stato.impostazioni.file, nol = b.kind === "noleggio";
-  const tpl = nol ? f.tplAttNoleggio : f.tplAttLavoro;
+  const tpl = nol ? f.tplAttNoleggio : senzaIntestazione() ? f.tplAttSenzaIntestazione : f.tplAttLavoro;
   try {
     if (!f.archivioListe) throw new CollegamentoMancante("Archivio liste attrezzatura");
-    if (!tpl) throw new CollegamentoMancante(nol ? "Template ATT — Noleggio a terzi" : "Template ATT — Lista attrezzatura lavoro");
+    if (!tpl) throw new CollegamentoMancante(nol ? "Template ATT — Noleggio a terzi" : senzaIntestazione() ? "Template ATT — Lista senza intestazione" : "Template ATT — Lista attrezzatura lavoro");
     const passo = avanzamento("Genero la lista");
     passo("Assegno il codice");
     const codice = b.edit?.codice || b.fromPrv || await prossimoCodice(), c = cliente();
@@ -421,7 +457,7 @@ async function genera(){
     const t = nol ? conto() : null;
     const dati = JSON.parse(JSON.stringify(b));
     ["step", "visited", "filter", "saved", "edit"].forEach(k => delete dati[k]);
-    Object.assign(dati, {titolo: titolo(), trello: righeTrello(), articoli: scelti().map(({a, q}) => ({id: a.id, nome: a.nome, cat: a.cat, q, prezzo: a.noleggio})),
+    Object.assign(dati, {titolo: titolo(), trello: righeTrello(), articoli: scelti().map(({a, q, g}) => ({id: a.id, nome: a.nome, cat: g.nome, esterno: !!a.esterno, q, prezzo: a.noleggio})),
       totali: t && {servizi: t.servizi, riv: t.riv, bollo: t.bollo, totale: t.totale, voluto: t.voluto, compenso: t.fz?.ok ? t.fz.compenso : null}});
     await registra({codice, tipo: "ATT", cliente: c, titolo: titolo(), v, nome, doc: r.doc.id, pdf: r.pdf.id, dati});
     const trello = !nol && righeTrello();

@@ -11,7 +11,7 @@ export const NOME_CARTELLA = "Gestionale FM — dati";
 export const COLLEGAMENTI = [
   {gruppo: "Fogli Google", voci: [
     {k: "sheetClienti", tipo: "foglio", nome: "Sheet Clienti", det: "Schede Clienti e Conti"},
-    {k: "sheetAttrezzatura", tipo: "foglio", nome: "Sheet Attrezzatura", det: "Attrezzatura, categorie, servizi e kit"}
+    {k: "sheetAttrezzatura", tipo: "foglio", nome: "Sheet Attrezzatura", det: "Attrezzatura, categorie, servizi, kit e attrezzatura clienti"}
   ]},
   {gruppo: "Cartelle archivio", voci: [
     {k: "archivioPreventivi", tipo: "cartella", nome: "Archivio preventivi"},
@@ -22,6 +22,7 @@ export const COLLEGAMENTI = [
   {gruppo: "Template", voci: [
     {k: "tplPrvDettagliato", tipo: "documento", nome: "PRV — Preventivo"},
     {k: "tplAttLavoro", tipo: "documento", nome: "ATT — Lista attrezzatura lavoro"},
+    {k: "tplAttSenzaIntestazione", tipo: "documento", nome: "ATT — Lista senza intestazione", det: "Facoltativo: per le liste con l’attrezzatura di un cliente"},
     {k: "tplAttNoleggio", tipo: "documento", nome: "ATT — Noleggio a terzi"},
     {k: "tplCtr", tipo: "documento", nome: "CTR — Contratto"},
     {k: "tplCdc", tipo: "documento", nome: "CDC — Copia di cortesia"},

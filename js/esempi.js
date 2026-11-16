@@ -113,6 +113,9 @@ export const PROVE = [
   {k: "tplAttLavoro", nome: "Lista lavoro, senza noleggi né note", dati: {
     ...CLIENTE, TITOLO: "Riprese personali", INFO_LAVORO: "", CLIENTE_NOME: "Lavoro personale",
     CAT: ARTICOLI.slice(0, 1), NOLEGGI: false, NOL: [], NOTE_LISTA: "", N_ARTICOLI: "2"}},
+  {k: "tplAttSenzaIntestazione", nome: "Lista senza intestazione (attrezzatura del cliente)", dati: {
+    ...CLIENTE, TITOLO: "Spot Conad", INFO_LAVORO: "16 giugno 2026 · Torino",
+    CAT: ARTICOLI, NOLEGGI: false, NOL: [], NOTE_LISTA: "", N_ARTICOLI: "10"}},
   {k: "tplAttNoleggio", nome: "Noleggio a terzi", dati: {
     ...CLIENTE, RITIRO: "2 dicembre 2026", RICONSEGNA: "7 dicembre 2026", GIORNI: "5",
     CAT: ARTICOLI, SUBTOTALE: "875,00 €", SCONTO_PERC: "15%", SCONTO: "−131,25 €",

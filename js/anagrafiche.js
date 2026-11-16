@@ -100,5 +100,20 @@ export async function listino(){
     sogliaMezza: prezzo(r["Soglia mezza giornata"]), prezzoMezza: prezzo(r["Prezzo mezza giornata"]),
     attivo: si(r["Attivo"]), noteInterne: r["Note interne"]
   })).sort((a, b) => (a.soglia ?? Infinity) - (b.soglia ?? Infinity));
-  return {categorie, articoli, servizi, categorieServizi: ordinaCategorie(s["Categorie servizi"]), kit};
+  /* Attrezzatura dei clienti (scheda facoltativa "Attrezzatura clienti"): non è sua, serve solo nelle liste
+     per un lavoro. Cliente = ID del foglio Clienti. Niente ID per riga: l'articolo si riconosce dal nome,
+     le categorie seguono l'ordine in cui compaiono. Quantità vuota = nessun massimo; Attivo vuoto = Sì. */
+  const esterni = [], visti = new Set();
+  for (const r of s["Attrezzatura clienti"] || []){
+    const cli = testo(r["Cliente"]), nome = String(r["Nome"] ?? "").trim(), catNome = testo(r["Categoria"]) || "Altro";
+    if (!cli || !nome) continue;
+    let id = `EST:${cli}:${nome}`;
+    for (let n = 2; visti.has(id); n++) id = `EST:${cli}:${nome} (${n})`;   // nomi doppi: restano distinti
+    visti.add(id);
+    const q = String(r["Quantità"] ?? "").trim();
+    esterni.push({id, cli, nome, cat: `EST:${cli}:${catNome}`, catNome, q: q === "" ? Infinity : Math.max(0, Math.floor(numero(q) || 0)),
+      lavoro: null, lavoroMezza: null, noleggio: null, noleggiabile: false,
+      attivo: String(r["Attivo"] ?? "").trim() === "" || si(r["Attivo"]), noteInterne: r["Note interne"], esterno: true});
+  }
+  return {categorie, articoli, servizi, categorieServizi: ordinaCategorie(s["Categorie servizi"]), kit, esterni};
 }
