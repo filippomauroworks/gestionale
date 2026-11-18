@@ -104,7 +104,14 @@ function importoVoce(v){
 const giorniAtt = () => numero(b.attGiorni !== "" ? b.attGiorni : giorniDefault()) || 0;
 const sogliaKit = k => b.attUnit === "m" ? k.sogliaMezza : k.soglia;
 const prezzoKit = k => b.attUnit === "m" ? k.prezzoMezza : k.prezzo;
-const KIT_MANO = "__mano";   // valore di attLivello per il kit scritto a mano (nome e prezzo nella bozza)
+const KIT_MANO = "__mano";   // valore di attLivello (o di override, nella lista) per il kit scritto a mano
+const kitMano = () => { const al = centesimi(b.kitPrezzo) || 0, nome = b.kitNome.trim() || "Kit"; return {mano: true, alGiorno: al, etichetta: nome, cliente: nome}; };
+// Nome e prezzo del kit scritto a mano: gli stessi campi nel passo Attrezzatura e nel passo Lista.
+const campiKitMano = u => `<div class="sub">
+  <label class="f"><span>Nome, come lo vede il cliente</span><input class="inp" ${Q}="kitNome" value="${esc(b.kitNome)}" placeholder="Es. Kit intervista" style="max-width:420px"><div class="cnt">Nel preventivo compare come “Attrezzatura tecnica, ” seguito da questo nome.</div></label>
+  <label class="f"><span>Prezzo a ${u} (€)</span><input class="inp num" inputmode="decimal" ${Q}="kitPrezzo" value="${esc(b.kitPrezzo)}" placeholder="0,00"><div class="cnt">Al netto di rivalsa e bollo, come i prezzi del foglio; si moltiplica per i giorni.</div></label>
+</div>`;
+const erroreKitMano = () => !b.kitNome.trim() ? "Kit scritto a mano: scrivi il nome." : !(centesimi(b.kitPrezzo) > 0) ? "Kit scritto a mano: scrivi il prezzo." : "";
 const prezzoPezzo = a => b.attUnit === "m" ? (a.lavoroMezza ?? a.lavoro ?? 0) : (a.lavoro ?? 0);
 const valoreLista = () => Object.entries(b.items).reduce((s, [id, x]) => { const a = articolo(id); return a ? s + (numero(x.qta) || 0) * prezzoPezzo(a) : s; }, 0);
 
@@ -112,10 +119,7 @@ const valoreLista = () => Object.entries(b.items).reduce((s, [id, x]) => { const
 function attrezzatura(){
   const g = giorniAtt(), kit = kitUsabili(), alto = kit[kit.length - 1];
   if (b.attMode === "none") return {on: false, totale: 0};
-  if (b.attMode === "livello" && b.attLivello === KIT_MANO){
-    const al = centesimi(b.kitPrezzo) || 0, nome = b.kitNome.trim() || "Kit";
-    return {on: true, mano: true, alGiorno: al, g, totale: al * g, etichetta: nome, cliente: nome};
-  }
+  if (b.attMode === "livello" && b.attLivello === KIT_MANO){ const m = kitMano(); return {on: true, ...m, g, totale: m.alGiorno * g}; }
   if (b.attMode === "livello"){
     const k = kit.find(x => x.nome === b.attLivello) || kit[0];
     if (!k) return {on: false, totale: 0};
@@ -124,6 +128,7 @@ function attrezzatura(){
   if (!Object.keys(b.items).length) return {on: false, totale: 0, vuota: true};
   const val = valoreLista(), auto = kit.find(k => sogliaKit(k) !== null && val <= sogliaKit(k)) || null;
   if (b.listaMode === "pezzi") return {on: true, val, auto, pezzi: true, alGiorno: val, g, totale: val * g, etichetta: "A pezzi", cliente: "come da lista allegata"};
+  if (b.override === KIT_MANO){ const m = kitMano(); return {on: true, val, auto, ...m, g, totale: m.alGiorno * g}; }
   let k = b.override === "auto" ? auto : kit.find(x => x.nome === b.override);
   if (k) return {on: true, val, auto, kit: k, alGiorno: prezzoKit(k), g, totale: prezzoKit(k) * g, etichetta: "Kit " + k.nome, cliente: "Kit " + k.nome};
   // Oltre la soglia del livello più alto.
@@ -515,10 +520,7 @@ function passoHTML(){
         <label class="f"><span>Cosa include, per il cliente (facoltativo)</span><input class="inp" ${Q}="attNota" value="${esc(b.attNota)}" placeholder="Es. 1 camera, ottiche fisse, kit luci" style="max-width:600px"><div class="cnt">Compare sotto la voce dell’attrezzatura nel preventivo.</div></label>
         ${b.attMode === "livello" ? (kitUsabili().map(k => opzione(Q, "attLivello", k.nome, b.attLivello, "Kit " + esc(k.nome), `${eur(prezzoKit(k))} a ${u}${sogliaKit(k) !== null ? `, materiale fino a ${eur(sogliaKit(k))}` : ""}`)).join("") || `<div class="note warn">Nel foglio Kit non ci sono livelli attivi con un prezzo a ${u}.</div>`)
             + opzione(Q, "attLivello", KIT_MANO, b.attLivello, "Kit scritto a mano", "Nome e prezzo li scrivi tu")
-            + (b.attLivello === KIT_MANO ? `<div class="sub">
-              <label class="f"><span>Nome, come lo vede il cliente</span><input class="inp" ${Q}="kitNome" value="${esc(b.kitNome)}" placeholder="Es. Kit intervista" style="max-width:420px"><div class="cnt">Nel preventivo compare come “Attrezzatura tecnica, ” seguito da questo nome.</div></label>
-              <label class="f"><span>Prezzo a ${u} (€)</span><input class="inp num" inputmode="decimal" ${Q}="kitPrezzo" value="${esc(b.kitPrezzo)}" placeholder="0,00"><div class="cnt">Al netto di rivalsa e bollo, come i prezzi del foglio; si moltiplica per i giorni.</div></label>
-            </div>` : "")
+            + (b.attLivello === KIT_MANO ? campiKitMano(u) : "")
           : `<div class="note">La lista la compili al passo successivo.</div>`}
       </div>` : ""}
       ${noleggiHTML()}`;
@@ -541,7 +543,8 @@ function passoHTML(){
         }).join("")}${tastoAggiungi("q-manadd", cat, "data-qname")}`;
       }).join("")}</div>
       <h3 class="grp">Livello e prezzo</h3>
-      <label class="f"><span>Livello del kit</span>${selezione(`${Q}="override" style="max-width:260px"`, [["auto", "Automatico"], ...kitUsabili().map(k => [k.nome, "Kit " + k.nome])], b.override)}</label>
+      <label class="f"><span>Livello del kit</span>${selezione(`${Q}="override" style="max-width:260px"`, [["auto", "Automatico"], ...kitUsabili().map(k => [k.nome, "Kit " + k.nome]), [KIT_MANO, "Kit scritto a mano"]], b.override)}</label>
+      ${b.override === KIT_MANO ? campiKitMano(b.attUnit === "m" ? "mezza giornata" : "giornata") : ""}
       <div id="tettoBox" data-oltre="${String(!!attrezzatura().oltre)}">${riquadroTetto()}</div>
       <div class="f"><span>Nel preventivo</span>${seg("listaMode", [["kit", "Come kit"], ["pezzi", "A pezzi"]])}</div>
       ${interruttore(Q, "genAtt", b.genAtt, "Genera anche la lista attrezzatura (ATT)", "Stesso codice del preventivo, per la scheda Trello")}`;
@@ -623,8 +626,7 @@ function valida(id){
   if (id === "att"){
     if (b.attMode !== "none" && !(giorniAtt() > 0)) return "Indica per quanti giorni serve l’attrezzatura.";
     if (b.attMode === "livello" && b.attLivello === KIT_MANO){
-      if (!b.kitNome.trim()) return "Kit scritto a mano: scrivi il nome.";
-      if (!(centesimi(b.kitPrezzo) > 0)) return "Kit scritto a mano: scrivi il prezzo.";
+      if (erroreKitMano()) return erroreKitMano();
     } else if (b.attMode === "livello" && !kitUsabili().length) return "Nel foglio Kit non ci sono livelli: scegli il kit scritto a mano, la lista o nessuna attrezzatura.";
     for (const n of b.noleggi){
       if (!n.desc.trim()) return "Noleggio esterno: scrivi cosa e da quale noleggio.";
@@ -638,6 +640,7 @@ function valida(id){
       if (!(q > 0) || !Number.isInteger(q)) return `${a.nome || "Articolo aggiunto a mano"}: indica la quantità.`;
       if (q > a.q) return `${a.nome}: in inventario ne hai ${a.q}.`;
     }
+    if (b.listaMode !== "pezzi" && b.override === KIT_MANO && erroreKitMano()) return erroreKitMano();
     const em = erroreManuali(b, campoPrezzoPezzo()); if (em) return em;
     const a = attrezzatura();
     if (a.oltre && (b.tetto === "mano" || !kitUsabili().length) && !(centesimi(b.tettoPrezzo) > 0)) return "Scrivi il prezzo dell’attrezzatura.";

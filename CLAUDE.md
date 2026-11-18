@@ -112,6 +112,7 @@ L'app copia il template nella cartella del cliente, sostituisce i segnaposto (mo
 Come nel prototipo.
 
 - **Navigazione**: barra laterale su desktop, barra in basso su mobile. Voci: Home, Attrezzatura, Preventivi, Contratti, Copie di cortesia; Impostazioni a parte.
+- **Telefoni** (sotto i 760 px): il testo delle schermate non si seleziona (`user-select: none`), perché lo scorrimento con un dito lo selezionava; campi, menu e copia per Trello restano selezionabili.
 - **Stile**: EB Garamond per titoli e cifre, DM Sans per il testo, ambra `#854F0B`, filetti sabbia, modalità chiara e scura. Logo: versione scura in modalità chiara, chiara in modalità scura.
 - **Home**: card "Riprendi" per ogni bozza in sospeso, quattro tasti rapidi, ultimi documenti.
 - **Ogni sezione** ha un elenco dei documenti con ricerca, versioni espandibili, tasti Modifica, Doc e PDF, "Carica PDF" e "Nuovo".
@@ -167,7 +168,7 @@ Come nel prototipo.
    - articoli per categoria con quantità;
    - sotto ogni categoria, "Aggiungi a mano": articolo fuori dal foglio con nome, prezzo lavoro (a giornata o a mezza, come la lista) e quantità; conta nel valore del materiale come gli altri;
    - riquadro con valore del materiale, livello calcolato, prezzo nel preventivo e differenza rispetto al valore a pezzi;
-   - livello forzabile a mano; scelta "Come kit / A pezzi";
+   - livello forzabile a mano, anche con "Kit scritto a mano" (nome e prezzo come nel passo Attrezzatura; gli articoli restano nella lista); scelta "Come kit / A pezzi";
    - "Importa da una lista ATT" in archivio;
    - interruttore "Genera anche la lista ATT".
 8. **Condizioni**, tutte facoltative e spente: acconto (%), revisioni incluse, tempi di consegna (giorni lavorativi), note generali, "Accettazione con firma" (in fondo la clausola di accettazione e gli spazi per luogo, data e firme del cliente e di Filippo: il preventivo firmato vale come accordo di inizio lavori). Con l'accettazione attiva compaiono due opzioni, come nel Punto 5 del contratto: "Scadenza del pagamento" (alla firma del preventivo, il giorno delle riprese, alla consegna, entro una data, a giorni dalla fattura; con l'acconto diventa la scadenza del saldo) e "Dati per il bonifico" (conto dal foglio Conti). Finiscono tra le condizioni: `Saldo alla consegna del lavoro.`, `Bonifico intestato a …, IBAN ….`
