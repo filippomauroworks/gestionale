@@ -120,5 +120,7 @@ export async function listino(){
       lavoro: null, lavoroMezza: null, noleggio: null, noleggiabile: false,
       attivo: true, esterno: true});
   }
-  return {categorie, articoli, servizi, categorieServizi: ordinaCategorie(s["Categorie servizi"]), kit, esterni};
+  // I miei link (scheda facoltativa): profili da copiare nella sezione "I miei link". Link vuoto = da aggiungere.
+  const link = (s["I miei link"] || []).map(r => ({nome: testo(r["Servizio"]), url: testo(r["Link"])})).filter(l => l.nome);
+  return {categorie, articoli, servizi, categorieServizi: ordinaCategorie(s["Categorie servizi"]), kit, esterni, link};
 }

@@ -88,6 +88,9 @@ details.versions summary{cursor:pointer;color:var(--muted);font-size:13px;width:
 .tile:hover{border-color:var(--accent)}
 .tile strong{display:block;font-family:var(--serif);font-weight:500;font-size:21px;margin-bottom:4px}
 .tile span{color:var(--muted);font-size:14px}
+.link-tasti .tile span{overflow-wrap:anywhere}
+.tile-vuota{cursor:default;opacity:.55}
+.tile-vuota:hover{border-color:var(--rule)}
 .draft-card{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;border:1px solid var(--accent);background:var(--accent-soft);border-radius:8px;padding:16px 18px}
 
 /* Procedura guidata */

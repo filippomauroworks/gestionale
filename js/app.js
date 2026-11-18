@@ -6,6 +6,7 @@ import * as liste from "./liste.js";
 import * as preventivi from "./preventivi.js";
 import * as contratti from "./contratti.js";
 import * as cortesia from "./cortesia.js";
+import * as link from "./link.js";
 import { documenti, ultima, trova } from "./registro.js";
 import { apriModifica, caricaPdf } from "./riapertura.js";
 import { rigaDocumento, scaricaPdf } from "./elenco.js";
@@ -25,15 +26,18 @@ const ICONS = {
   preventivi:'<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h7"/>',
   contratti:'<path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 17l2 1.5 4-3.5"/>',
   cortesia:'<path d="M5 3h14v18l-2.3-1.5L14.3 21 12 19.5 9.7 21l-2.4-1.5L5 21z"/><path d="M9 8h6M9 12h6"/>',
+  link:'<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.3 1.3"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.3-1.3"/>',
   impostazioni:'<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>'
 };
 const icon = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k]}</svg>`;
 const NAV = [["home","Home"],["attrezzatura","Attrezzatura"],["preventivi","Preventivi"],["contratti","Contratti"],["cortesia","Copie di cortesia"]];
 const TAB_LABEL = {cortesia:"Cortesia"};
 $("#sideNav").innerHTML = NAV.map(([k,l]) => `<a href="#${k}" data-nav="${k}">${icon(k)}${l}</a>`).join("");
-$("#sideNav2").innerHTML = `<a href="#impostazioni" data-nav="impostazioni">${icon("impostazioni")}Impostazioni</a>`;
+$("#sideNav2").innerHTML = `<a href="#link" data-nav="link">${icon("link")}I miei link</a><a href="#impostazioni" data-nav="impostazioni">${icon("impostazioni")}Impostazioni</a>`;
 $("#tabbar").innerHTML = NAV.map(([k,l]) => `<a href="#${k}" data-nav="${k}">${icon(k)}${TAB_LABEL[k]||l}</a>`).join("");
 $("#topSet").innerHTML = icon("impostazioni");
+$("#topLink").innerHTML = icon("link");
+$("#topLink").dataset.nav = "link";
 $("#topSet").dataset.nav = "impostazioni";
 
 /* ---------- Tema ---------- */
@@ -234,7 +238,7 @@ async function provaTemplate(){
 }
 
 /* ---------- Router ---------- */
-const TITLES = {home:"Home", attrezzatura:"Attrezzatura", "attrezzatura-nuova":"Attrezzatura", preventivi:"Preventivi", "preventivi-nuovo":"Preventivi", contratti:"Contratti", "contratti-nuovo":"Contratti", cortesia:"Copie di cortesia", "cortesia-verifica":"Copie di cortesia", impostazioni:"Impostazioni"};
+const TITLES = {home:"Home", attrezzatura:"Attrezzatura", "attrezzatura-nuova":"Attrezzatura", preventivi:"Preventivi", "preventivi-nuovo":"Preventivi", contratti:"Contratti", "contratti-nuovo":"Contratti", cortesia:"Copie di cortesia", "cortesia-verifica":"Copie di cortesia", link:"I miei link", impostazioni:"Impostazioni"};
 const PROCEDURE = {"attrezzatura-nuova": "attrezzatura", "preventivi-nuovo": "preventivi", "contratti-nuovo": "contratti", "cortesia-verifica": "cortesia"};
 function route(){
   if (!stato.impostazioni) return;
@@ -254,6 +258,7 @@ function route(){
   else if (h === "contratti-nuovo"){ contratti.vistaProcedura(v); return; }
   else if (h === "cortesia") v.innerHTML = cortesia.vistaSezione();
   else if (h === "cortesia-verifica"){ const html = cortesia.vistaVerifica(); if (!html) return; v.innerHTML = html; cortesia.aggiorna(); }
+  else if (h === "link"){ link.vistaLink(v); return; }
   else if (h === "impostazioni"){
     v.innerHTML = impostazioni();
     TUTTI_COLLEGAMENTI.filter(c => stato.impostazioni.file[c.k] && !verifiche[c.k]).forEach(verifica);
@@ -267,7 +272,7 @@ document.addEventListener("click", e => {
   const a = e.target.closest("[data-action]");
   if (!a) return;
   const act = a.dataset.action;
-  if (liste.click(act, a) || preventivi.click(act, a) || contratti.click(act, a) || cortesia.click(act, a)) return;
+  if (liste.click(act, a) || preventivi.click(act, a) || contratti.click(act, a) || cortesia.click(act, a) || link.click(act, a)) return;
   if (act === "modifica"){ e.preventDefault(); const d = trova(a.dataset.codice, a.dataset.tipo); if (d) apriModifica(d, +a.dataset.v); }
   else if (act === "carica-pdf") caricaPdf(a.dataset.tipo);
   else if (act === "scarica-pdf"){ e.preventDefault(); scaricaPdf(a.dataset.id, a.dataset.nome).catch(err => gestisciErrore(err)); }

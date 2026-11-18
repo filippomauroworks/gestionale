@@ -58,6 +58,8 @@ L'app legge le colonne **per nome di intestazione**, mai per posizione. Salta le
 - **Kit**: Livello, Nome, Descrizione per il cliente, Soglia giornata, Prezzo giornata, Soglia mezza giornata, Prezzo mezza giornata, Attivo, Note interne. Ordinati per soglia; possono essere più di tre.
 - **Attrezzatura Officina 38** (scheda facoltativa, 16 novembre 2026): Sezione, Categoria, Prodotto, Quantità. È un'eccezione: l'attrezzatura che Officina 38 gli mette a disposizione quando lavora con loro. Niente ID né prezzi; la colonna Sezione si ignora, le categorie seguono l'ordine in cui compaiono. Vale solo per il cliente il cui nome nel foglio Clienti contiene "Officina 38" (`CLIENTE_ESTERNO` in `js/anagrafiche.js`). Se la scheda manca non è un errore.
 
+- **I miei link** (scheda facoltativa, 18 novembre 2026): Servizio, Link. Alimenta la sezione "I miei link" dell'app; una riga senza link compare spenta ("Link da aggiungere nel foglio").
+
 Tutti i prezzi nei fogli sono al netto della rivalsa del 4% e del bollo.
 
 ---
@@ -111,7 +113,8 @@ L'app copia il template nella cartella del cliente, sostituisce i segnaposto (mo
 
 Come nel prototipo.
 
-- **Navigazione**: barra laterale su desktop, barra in basso su mobile. Voci: Home, Attrezzatura, Preventivi, Contratti, Copie di cortesia; Impostazioni a parte.
+- **Navigazione**: barra laterale su desktop, barra in basso su mobile. Voci: Home, Attrezzatura, Preventivi, Contratti, Copie di cortesia; I miei link e Impostazioni a parte (sul telefono sono le due icone in alto a destra).
+- **I miei link** (`js/link.js`): un tasto per profilo, dalla scheda "I miei link" del listino; il tasto copia il link negli appunti, come "Copia per Trello".
 - **Telefoni** (sotto i 760 px): il testo delle schermate non si seleziona (`user-select: none`), perché lo scorrimento con un dito lo selezionava; campi, menu e copia per Trello restano selezionabili.
 - **Stile**: EB Garamond per titoli e cifre, DM Sans per il testo, ambra `#854F0B`, filetti sabbia, modalità chiara e scura. Logo: versione scura in modalità chiara, chiara in modalità scura.
 - **Home**: card "Riprendi" per ogni bozza in sospeso, quattro tasti rapidi, ultimi documenti.
