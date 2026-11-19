@@ -62,6 +62,7 @@ Un solo template, il Documento Google "PRV — Preventivo dettagliato" (il nome 
 | `{{DICITURA_ESCLUSI?}}` | Frase su voci a consuntivo e noleggi pagati dal cliente |
 | `{{TOT_SERVIZI}}`, `{{RIVALSA}}`, `{{BOLLO?}}`, `{{ARROTONDAMENTO?}}`, `{{TOTALE}}` | Totali. L'arrotondamento ha il segno: `−7,20 €` |
 | `{{SCONTO?}}` | Sconto facoltativo, `−50,00 €`: riga "Sconto" in grassetto ambra prima di "Arrotondamento"; sparisce se non c'è |
+| `{{SCONTO_MOTIVO?}}` | Motivo dello sconto, facoltativo (`Cliente abituale`): paragrafo piccolo in ambra subito sotto la riga dello sconto |
 | `{{#CON_NOTE}}` … `{{/CON_NOTE}}` | Blocco delle note a piè di pagina; sparisce se non ce ne sono |
 | `{{NOTA.RIF}}`, `{{NOTA.TESTO}}` | Note a piè di pagina numerate, un paragrafo per nota |
 | `{{#ACCETTAZIONE}}` … `{{/ACCETTAZIONE}}` | Blocco finale facoltativo (interruttore "Accettazione con firma" nel passo Condizioni): titolo `ACCETTAZIONE`, la clausola scritta nel Doc e la tabella delle firme (a sinistra il cliente con `{{CLIENTE_NOME}}`, luogo e data, firma; a destra Filippo Mauro, firma) |

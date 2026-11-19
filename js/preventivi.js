@@ -25,7 +25,7 @@ const BASE = () => ({step: "cliente", visited: ["cliente"], cli: "", titolo: "",
   attMode: "lista", attUnit: "g", attGiorni: "", attLivello: "", kitNome: "", kitPrezzo: "", items: {}, manuali: {}, nMan: 0, override: "auto", listaMode: "kit", tetto: "top", tettoPrezzo: "", genAtt: true,
   noleggi: [], accontoOn: false, accontoPerc: "30", revOn: false, revN: "2", consOn: false, consGiorni: "10", accettOn: false,
   pagQuandoOn: false, pagQuando: "consegna", pagData: "", pagMetodo: "bonifico", pagGiorni: "30", pagContoOn: false, pagConto: "", note: "",
-  attNota: "", scontoOn: false, sconto: "", cifra: "", noRound: true, edit: null, saved: null});
+  attNota: "", scontoOn: false, sconto: "", scontoMotivo: "", cifra: "", noRound: true, edit: null, saved: null});
 let b = store.get(BKEY, null);
 if (b) b = Object.assign(BASE(), b);
 const salva = () => { b.saved = new Date().toISOString(); store.set(BKEY, b); };
@@ -387,6 +387,7 @@ function riquadroTetto(){
     ${opzione(Q, "tetto", "mano", b.tetto, "Prezzo a mano", "Scrivi tu il prezzo")}
     ${b.tetto === "mano" ? `<div class="sub"><label class="f"><span>Prezzo a ${u} (€)</span><input class="inp num" inputmode="decimal" ${Q}="tettoPrezzo" value="${esc(b.tettoPrezzo)}" placeholder="0,00"></label></div>` : ""}`;
 }
+const motivoSconto = () => b.scontoOn ? b.scontoMotivo.trim() : "";
 function riquadroTotale(){
   const t = conto(), L4 = stato.impostazioni.etichetta4;
   if (!(t.servizi > 0)) return `<p class="muted">Il preventivo è ancora vuoto.</p>`;
@@ -401,7 +402,7 @@ function riquadroTotale(){
     <dt>${esc(L4)}</dt><dd>${eur(t.riv)}</dd>
     <dt>Marca da bollo</dt><dd>${t.bollo ? eur(t.bollo) : "Non dovuta"}</dd>
     <dt class="sep">Totale calcolato</dt><dd class="sep">${eur(t.totale)}</dd>
-    ${t.sconto ? `<dt class="sconto">Sconto</dt><dd class="sconto">−${eur(t.sconto)}</dd><dt>Totale scontato</dt><dd>${eur(t.scontato)}</dd>` : ""}
+    ${t.sconto ? `<dt class="sconto">Sconto${motivoSconto() ? `<small>${esc(motivoSconto())}</small>` : ""}</dt><dd class="sconto">−${eur(t.sconto)}</dd><dt>Totale scontato</dt><dd>${eur(t.scontato)}</dd>` : ""}
     ${t.arr ? `<dt>Arrotondamento</dt><dd>${eurSegno(t.arr)}</dd>` : ""}
     <dt class="grand">Totale al cliente</dt><dd class="grand">${eur(t.voluto)}</dd>
   </dl>${avviso}${fz}`;
@@ -442,7 +443,7 @@ function anteprima(){
   const t = conto(), {fasi, note} = vociCliente(), esclusi = diciturEsclusi();
   return `<small class="cnt" style="display:block;margin-bottom:12px">Anteprima del preventivo</small>
     ${fasi.length ? fasi.map(f => `<h4>${f.NOME}</h4><ul>${f.VOCE.map(v => `<li><span>${esc(v.NOME)}${v.RIF ? `<sup>${v.RIF}</sup>` : ""}${v.DESCRIZIONE ? `<br><small class="muted">${esc(v.DESCRIZIONE)}</small>` : ""}</span><span>${esc([v.QUANTITA, v.IMPORTO].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul>`).join("") : `<p class="muted">Nessuna voce.</p>`}
-    ${t.sconto ? `<div class="cnt sconto">Sconto −${eur(t.sconto)}</div>` : ""}
+    ${t.sconto ? `<div class="cnt sconto">Sconto −${eur(t.sconto)}${motivoSconto() ? ` · ${esc(motivoSconto())}` : ""}</div>` : ""}
     <div class="ptot">Totale ${eur(t.voluto)}</div>
     <div class="cnt">${esc(diciturTotale(t))}${esclusi ? " " + esc(esclusi) : ""}</div>
     <div class="pnote">${condizioni().map(esc).join("<br>")}</div>
@@ -477,7 +478,7 @@ function pannello(){
       <dt class="sep">Totale servizi</dt><dd class="sep">${eur(t.servizi)}</dd>
       <dt>${esc(L4)}</dt><dd>${eur(t.riv)}</dd>
       ${t.bollo ? `<dt>Marca da bollo</dt><dd>${eur(t.bollo)}</dd>` : ""}
-      ${t.sconto ? `<dt class="sconto">Sconto</dt><dd class="sconto">−${eur(t.sconto)}</dd>` : ""}
+      ${t.sconto ? `<dt class="sconto">Sconto${motivoSconto() ? `<small>${esc(motivoSconto())}</small>` : ""}</dt><dd class="sconto">−${eur(t.sconto)}</dd>` : ""}
       ${t.arr ? `<dt>Arrotondamento</dt><dd>${eurSegno(t.arr)}</dd>` : ""}
       <dt class="grand">Totale</dt><dd class="grand">${eur(t.voluto)}</dd>
     </dl>
@@ -575,7 +576,8 @@ function passoHTML(){
 
     case "totale": return `<h2 class="field-q">Totale</h2><p class="hint">Scrivi la cifra che comunicherai al cliente: l’app calcola l’arrotondamento e il compenso da inserire su Fiscozen.</p>
       ${interruttore(Q, "scontoOn", b.scontoOn, "Sconto", "Una cifra tolta dal totale, scritta come sconto nel preventivo. L’arrotondamento si applica dopo")}
-      ${b.scontoOn ? `<div class="sub"><label class="f"><span>Sconto (€)</span><input class="inp num" inputmode="decimal" ${Q}="sconto" value="${esc(b.sconto)}" placeholder="0,00"></label></div>` : ""}
+      ${b.scontoOn ? `<div class="sub"><label class="f"><span>Sconto (€)</span><input class="inp num" inputmode="decimal" ${Q}="sconto" value="${esc(b.sconto)}" placeholder="0,00"></label>
+        <label class="f"><span>Motivo (facoltativo)</span><input class="inp" ${Q}="scontoMotivo" value="${esc(b.scontoMotivo)}" placeholder="Es. Cliente abituale" style="max-width:420px"><div class="cnt">Nel preventivo compare in piccolo sotto la riga dello sconto.</div></label></div>` : ""}
       ${interruttore(Q, "noRound", b.noRound, "Nessun arrotondamento", b.scontoOn ? "Il totale resta quello scontato" : "Il totale resta quello calcolato")}
       ${b.noRound ? "" : `<label class="f"><span>Cifra finale desiderata (€)</span><input class="inp num" inputmode="decimal" ${Q}="cifra" value="${esc(b.cifra)}" placeholder="0,00"></label>`}
       <div id="totBox">${riquadroTotale()}</div>
@@ -779,7 +781,7 @@ function datiTemplate(codice){
     TITOLO: b.titolo.trim(), DESCRIZIONE: b.desc.trim(), INFO_LAVORO: info,
     FASE: fasi, CON_NOTE: note.length > 0, ACCETTAZIONE: !!b.accettOn, NOTA: note.map((n, i) => ({RIF: String(i + 1), TESTO: n})), CONDIZIONE: condizioni(),
     DICITURA_ESCLUSI: diciturEsclusi(), TOTALE: eur(t.voluto), DICITURA_TOTALE: diciturTotale(t),
-    TOT_SERVIZI: eur(t.servizi), RIVALSA: eur(t.riv), BOLLO: t.bollo ? eur(t.bollo) : "", SCONTO: t.sconto ? "−" + eur(t.sconto) : "", ARROTONDAMENTO: t.arr ? eurSegno(t.arr) : ""};
+    TOT_SERVIZI: eur(t.servizi), RIVALSA: eur(t.riv), BOLLO: t.bollo ? eur(t.bollo) : "", SCONTO: t.sconto ? "−" + eur(t.sconto) : "", SCONTO_MOTIVO: t.sconto ? motivoSconto() : "", ARROTONDAMENTO: t.arr ? eurSegno(t.arr) : ""};
 }
 
 // Lista ATT nata dal preventivo: stessa forma dei dati delle liste.
