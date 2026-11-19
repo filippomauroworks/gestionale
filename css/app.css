@@ -90,6 +90,8 @@ details.versions summary{cursor:pointer;color:var(--muted);font-size:13px;width:
 .tile span{color:var(--muted);font-size:14px}
 .link-tasti .tile span{overflow-wrap:anywhere}
 .tile-vuota{cursor:default;opacity:.55}
+/* Lo sconto si distingue dall'arrotondamento */
+.tot .sconto,.cnt.sconto{color:var(--accent);font-weight:600}
 .tile-vuota:hover{border-color:var(--rule)}
 .draft-card{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;border:1px solid var(--accent);background:var(--accent-soft);border-radius:8px;padding:16px 18px}
 

@@ -176,6 +176,7 @@ Come nel prototipo.
    - interruttore "Genera anche la lista ATT".
 8. **Condizioni**, tutte facoltative e spente: acconto (%), revisioni incluse, tempi di consegna (giorni lavorativi), note generali, "Accettazione con firma" (in fondo la clausola di accettazione e gli spazi per luogo, data e firme del cliente e di Filippo: il preventivo firmato vale come accordo di inizio lavori). Con l'accettazione attiva compaiono due opzioni, come nel Punto 5 del contratto: "Scadenza del pagamento" (alla firma del preventivo, il giorno delle riprese, alla consegna, entro una data, a giorni dalla fattura; con l'acconto diventa la scadenza del saldo) e "Dati per il bonifico" (conto dal foglio Conti). Finiscono tra le condizioni: `Saldo alla consegna del lavoro.`, `Bonifico intestato a …, IBAN ….`
 9. **Totale**:
+   - sconto facoltativo in euro (interruttore "Sconto", 19 novembre 2026): si toglie dal totale calcolato (rivalsa e bollo compresi) e l'arrotondamento si applica dopo, sul totale scontato. Nel preventivo è la riga `Sconto −50,00 €`, in grassetto ambra tra "Marca da bollo" e "Arrotondamento" (`{{SCONTO?}}`); nell'app è evidenziato allo stesso modo;
    - cifra finale desiderata, oppure "Nessun arrotondamento";
    - arrotondamento con segno, in su o in giù, e avviso oltre il 15%;
    - compenso per Fiscozen;
@@ -296,7 +297,8 @@ Tutti i calcoli si fanno in **centesimi interi**.
 - **Rivalsa**: rivalsa = arrotonda(servizi × 0,04).
 - **Bollo**: 2,00 € solo se servizi + rivalsa > 77,47 €.
 - **Totale calcolato**: servizi + rivalsa + bollo.
-- **Arrotondamento**: totale calcolato − cifra desiderata. Positivo è uno sconto, negativo un rialzo.
+- **Sconto** (facoltativo): totale scontato = totale calcolato − sconto.
+- **Arrotondamento**: totale scontato (o calcolato, senza sconto) − cifra desiderata. Positivo è un ribasso, negativo un rialzo.
 - **Compenso Fiscozen**: cercare il compenso C in centesimi tale che C + arrotonda(C × 0,04) + bollo(C) = totale desiderato. Se nessun C torna, proporre i due totali raggiungibili più vicini.
 - **Kit**:
   - il valore è Σ prezzo lavoro × quantità, a giornata o a mezza giornata; per la mezza, i pezzi senza prezzo di mezza contano a prezzo intero;

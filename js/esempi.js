@@ -36,8 +36,8 @@ const PRV = {
   ],
   CONDIZIONE: ["Acconto del 30% alla firma.", "Due revisioni incluse.", "Consegna entro 10 giorni lavorativi dalle riprese.", "Preventivo valido 30 giorni."],
   DICITURA_ESCLUSI: "Il noleggio del drone è fatturato direttamente da Rental X e non è compreso nel totale.",
-  TOT_SERVIZI: "2.540,00 €", RIVALSA: "101,60 €", BOLLO: "2,00 €", ARROTONDAMENTO: "−3,60 €",
-  TOTALE: "2.640,00 €",
+  TOT_SERVIZI: "2.540,00 €", RIVALSA: "101,60 €", BOLLO: "2,00 €", SCONTO: "−100,00 €", ARROTONDAMENTO: "−3,60 €",
+  TOTALE: "2.540,00 €",
   DICITURA_TOTALE: "Comprensivo di rivalsa INPS 4% e imposta di bollo."
 };
 
@@ -103,7 +103,7 @@ const LISTINO = {
 /* Le prove: k è la chiave del template nelle Impostazioni. */
 export const PROVE = [
   {k: "tplPrvDettagliato", nome: "Preventivo, con note e accettazione con firma", dati: {...PRV, ACCETTAZIONE: true}},
-  {k: "tplPrvDettagliato", nome: "Preventivo, senza note né accettazione", dati: {...PRV, ACCETTAZIONE: false, CON_NOTE: false, NOTA: [],
+  {k: "tplPrvDettagliato", nome: "Preventivo, senza note né accettazione né sconto", dati: {...PRV, ACCETTAZIONE: false, SCONTO: "", TOTALE: "2.640,00 €", CON_NOTE: false, NOTA: [],
     FASE: PRV.FASE.map(f => ({...f, VOCE: f.VOCE.map(v => ({...v, RIF: ""}))}))}},
   {k: "tplAttLavoro", nome: "Lista lavoro, con noleggi e note", dati: {
     ...CLIENTE, TITOLO: "Convention di fine anno", INFO_LAVORO: "12 dicembre 2026 · Torino",

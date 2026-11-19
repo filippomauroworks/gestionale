@@ -25,7 +25,7 @@ const BASE = () => ({step: "cliente", visited: ["cliente"], cli: "", titolo: "",
   attMode: "lista", attUnit: "g", attGiorni: "", attLivello: "", kitNome: "", kitPrezzo: "", items: {}, manuali: {}, nMan: 0, override: "auto", listaMode: "kit", tetto: "top", tettoPrezzo: "", genAtt: true,
   noleggi: [], accontoOn: false, accontoPerc: "30", revOn: false, revN: "2", consOn: false, consGiorni: "10", accettOn: false,
   pagQuandoOn: false, pagQuando: "consegna", pagData: "", pagMetodo: "bonifico", pagGiorni: "30", pagContoOn: false, pagConto: "", note: "",
-  attNota: "", cifra: "", noRound: true, edit: null, saved: null});
+  attNota: "", scontoOn: false, sconto: "", cifra: "", noRound: true, edit: null, saved: null});
 let b = store.get(BKEY, null);
 if (b) b = Object.assign(BASE(), b);
 const salva = () => { b.saved = new Date().toISOString(); store.set(BKEY, b); };
@@ -143,8 +143,10 @@ function conto(){
   Object.entries(b.voci).forEach(([id, v]) => { fasi[faseVoce(id, v)] += importoVoce(v); });
   const a = attrezzatura(), nol = b.noleggi.reduce((s, n) => s + importoNoleggio(n), 0);
   const t = totali(fasi.pre + fasi.prod + fasi.post + a.totale + nol);
-  const voluto = b.noRound || !(centesimi(b.cifra) > 0) ? t.totale : centesimi(b.cifra);
-  return {fasi, a, nol, ...t, voluto, arr: t.totale - voluto, fz: t.servizi > 0 ? fiscozen(voluto) : null};
+  // Lo sconto si toglie dal totale calcolato; l'arrotondamento viene dopo, sul totale scontato.
+  const sconto = b.scontoOn ? Math.max(0, Math.min(centesimi(b.sconto) || 0, t.totale)) : 0, scontato = t.totale - sconto;
+  const voluto = b.noRound || !(centesimi(b.cifra) > 0) ? scontato : centesimi(b.cifra);
+  return {fasi, a, nol, ...t, sconto, scontato, voluto, arr: scontato - voluto, fz: t.servizi > 0 ? fiscozen(voluto) : null};
 }
 
 /* ---------- Testi per il cliente ---------- */
@@ -389,8 +391,8 @@ function riquadroTotale(){
   const t = conto(), L4 = stato.impostazioni.etichetta4;
   if (!(t.servizi > 0)) return `<p class="muted">Il preventivo è ancora vuoto.</p>`;
   let avviso = "";
-  if (t.arr > 0 && t.arr / t.totale > 0.15) avviso = `<div class="note warn">Stai scontando il ${qta(t.arr / t.totale * 100)}% sul totale calcolato.</div>`;
-  else if (t.arr < 0) avviso = `<div class="note${-t.arr / t.totale > 0.15 ? " warn" : ""}">Arrotondamento in su di ${eur(-t.arr)} (${qta(-t.arr / t.totale * 100)}%).</div>`;
+  if (t.arr > 0 && t.arr / t.scontato > 0.15) avviso = `<div class="note warn">L’arrotondamento toglie il ${qta(t.arr / t.scontato * 100)}% al totale${t.sconto ? " scontato" : " calcolato"}.</div>`;
+  else if (t.arr < 0) avviso = `<div class="note${-t.arr / t.scontato > 0.15 ? " warn" : ""}">Arrotondamento in su di ${eur(-t.arr)} (${qta(-t.arr / t.scontato * 100)}%).</div>`;
   let fz = "";
   if (t.fz?.ok) fz = `<div class="fzbox"><small>Da inserire su Fiscozen</small><strong>Compenso ${eur(t.fz.compenso)}</strong><span>${esc(L4)} ${eur(t.fz.riv)}${t.fz.bollo ? ", bollo 2,00 €" : ""}: fattura di ${eur(t.voluto)}</span></div>`;
   else if (t.fz) fz = `<div class="note warn">Con ${eur(t.voluto)} la fattura su Fiscozen non torna al centesimo. Scegli una cifra vicina:<div class="actions" style="margin-top:10px">${[t.fz.sotto, t.fz.sopra].filter(x => x).map(x => `<button class="btn small" data-action="q-cifra" data-v="${x}">${eur(x)}</button>`).join("")}</div></div>`;
@@ -399,6 +401,7 @@ function riquadroTotale(){
     <dt>${esc(L4)}</dt><dd>${eur(t.riv)}</dd>
     <dt>Marca da bollo</dt><dd>${t.bollo ? eur(t.bollo) : "Non dovuta"}</dd>
     <dt class="sep">Totale calcolato</dt><dd class="sep">${eur(t.totale)}</dd>
+    ${t.sconto ? `<dt class="sconto">Sconto</dt><dd class="sconto">−${eur(t.sconto)}</dd><dt>Totale scontato</dt><dd>${eur(t.scontato)}</dd>` : ""}
     ${t.arr ? `<dt>Arrotondamento</dt><dd>${eurSegno(t.arr)}</dd>` : ""}
     <dt class="grand">Totale al cliente</dt><dd class="grand">${eur(t.voluto)}</dd>
   </dl>${avviso}${fz}`;
@@ -439,6 +442,7 @@ function anteprima(){
   const t = conto(), {fasi, note} = vociCliente(), esclusi = diciturEsclusi();
   return `<small class="cnt" style="display:block;margin-bottom:12px">Anteprima del preventivo</small>
     ${fasi.length ? fasi.map(f => `<h4>${f.NOME}</h4><ul>${f.VOCE.map(v => `<li><span>${esc(v.NOME)}${v.RIF ? `<sup>${v.RIF}</sup>` : ""}${v.DESCRIZIONE ? `<br><small class="muted">${esc(v.DESCRIZIONE)}</small>` : ""}</span><span>${esc([v.QUANTITA, v.IMPORTO].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul>`).join("") : `<p class="muted">Nessuna voce.</p>`}
+    ${t.sconto ? `<div class="cnt sconto">Sconto −${eur(t.sconto)}</div>` : ""}
     <div class="ptot">Totale ${eur(t.voluto)}</div>
     <div class="cnt">${esc(diciturTotale(t))}${esclusi ? " " + esc(esclusi) : ""}</div>
     <div class="pnote">${condizioni().map(esc).join("<br>")}</div>
@@ -473,6 +477,7 @@ function pannello(){
       <dt class="sep">Totale servizi</dt><dd class="sep">${eur(t.servizi)}</dd>
       <dt>${esc(L4)}</dt><dd>${eur(t.riv)}</dd>
       ${t.bollo ? `<dt>Marca da bollo</dt><dd>${eur(t.bollo)}</dd>` : ""}
+      ${t.sconto ? `<dt class="sconto">Sconto</dt><dd class="sconto">−${eur(t.sconto)}</dd>` : ""}
       ${t.arr ? `<dt>Arrotondamento</dt><dd>${eurSegno(t.arr)}</dd>` : ""}
       <dt class="grand">Totale</dt><dd class="grand">${eur(t.voluto)}</dd>
     </dl>
@@ -569,7 +574,9 @@ function passoHTML(){
       </div>` : ""}`;
 
     case "totale": return `<h2 class="field-q">Totale</h2><p class="hint">Scrivi la cifra che comunicherai al cliente: l’app calcola l’arrotondamento e il compenso da inserire su Fiscozen.</p>
-      ${interruttore(Q, "noRound", b.noRound, "Nessun arrotondamento", "Il totale resta quello calcolato")}
+      ${interruttore(Q, "scontoOn", b.scontoOn, "Sconto", "Una cifra tolta dal totale, scritta come sconto nel preventivo. L’arrotondamento si applica dopo")}
+      ${b.scontoOn ? `<div class="sub"><label class="f"><span>Sconto (€)</span><input class="inp num" inputmode="decimal" ${Q}="sconto" value="${esc(b.sconto)}" placeholder="0,00"></label></div>` : ""}
+      ${interruttore(Q, "noRound", b.noRound, "Nessun arrotondamento", b.scontoOn ? "Il totale resta quello scontato" : "Il totale resta quello calcolato")}
       ${b.noRound ? "" : `<label class="f"><span>Cifra finale desiderata (€)</span><input class="inp num" inputmode="decimal" ${Q}="cifra" value="${esc(b.cifra)}" placeholder="0,00"></label>`}
       <div id="totBox">${riquadroTotale()}</div>
       ${consuntivoHTML()}`;
@@ -655,6 +662,8 @@ function valida(id){
   }
   if (id === "totale"){
     if (!(conto().servizi > 0)) return "Il preventivo è vuoto: aggiungi almeno una voce.";
+    if (b.scontoOn && !(centesimi(b.sconto) > 0)) return "Scrivi l’importo dello sconto, oppure spegnilo.";
+    if (b.scontoOn && centesimi(b.sconto) >= conto().totale) return "Lo sconto non può essere uguale o superiore al totale.";
     if (!b.noRound && !(centesimi(b.cifra) > 0)) return "Scrivi la cifra finale, oppure attiva “Nessun arrotondamento”.";
   }
   return "";
@@ -688,7 +697,7 @@ function ridisegna(fuoco){
 }
 const vaiAlPasso = id => { b.step = id; if (!b.visited.includes(id)) b.visited.push(id); salva(); vistaProcedura($("#view")); };
 
-const RIDISEGNA = ["cli", "attMode", "attUnit", "attLivello", "override", "tetto", "listaMode", "accontoOn", "revOn", "consOn", "accettOn", "pagQuandoOn", "pagQuando", "pagContoOn", "noRound", "genAtt"];
+const RIDISEGNA = ["cli", "attMode", "attUnit", "attLivello", "override", "tetto", "listaMode", "accontoOn", "revOn", "consOn", "accettOn", "pagQuandoOn", "pagQuando", "pagContoOn", "scontoOn", "noRound", "genAtt"];
 function campo(el){
   if (!b || !L) return;
   let rr = false, fuoco = null;
@@ -770,7 +779,7 @@ function datiTemplate(codice){
     TITOLO: b.titolo.trim(), DESCRIZIONE: b.desc.trim(), INFO_LAVORO: info,
     FASE: fasi, CON_NOTE: note.length > 0, ACCETTAZIONE: !!b.accettOn, NOTA: note.map((n, i) => ({RIF: String(i + 1), TESTO: n})), CONDIZIONE: condizioni(),
     DICITURA_ESCLUSI: diciturEsclusi(), TOTALE: eur(t.voluto), DICITURA_TOTALE: diciturTotale(t),
-    TOT_SERVIZI: eur(t.servizi), RIVALSA: eur(t.riv), BOLLO: t.bollo ? eur(t.bollo) : "", ARROTONDAMENTO: t.arr ? eurSegno(t.arr) : ""};
+    TOT_SERVIZI: eur(t.servizi), RIVALSA: eur(t.riv), BOLLO: t.bollo ? eur(t.bollo) : "", SCONTO: t.sconto ? "−" + eur(t.sconto) : "", ARROTONDAMENTO: t.arr ? eurSegno(t.arr) : ""};
 }
 
 // Lista ATT nata dal preventivo: stessa forma dei dati delle liste.
@@ -816,7 +825,7 @@ async function genera(){
     passo("Aggiorno il registro");
     const bozza = JSON.parse(JSON.stringify(b));
     ["step", "visited", "saved", "edit"].forEach(k => delete bozza[k]);
-    bozza.conto = {servizi: t.servizi, riv: t.riv, bollo: t.bollo, totale: t.totale, voluto: t.voluto, compenso: t.fz?.ok ? t.fz.compenso : null, fasi: t.fasi, attrezzatura: t.a.totale, noleggi: t.nol};
+    bozza.conto = {servizi: t.servizi, riv: t.riv, bollo: t.bollo, totale: t.totale, sconto: t.sconto, voluto: t.voluto, compenso: t.fz?.ok ? t.fz.compenso : null, fasi: t.fasi, attrezzatura: t.a.totale, noleggi: t.nol};
     bozza.maggiorazione = magg();
     const d = await registra({codice, tipo: "PRV", cliente: c, titolo: b.titolo.trim(), v, nome, doc: r.doc.id, pdf: r.pdf.id, dati: bozza});
     // Lo stato sta nel registro.
