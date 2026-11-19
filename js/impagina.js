@@ -121,3 +121,26 @@ export async function togliIntestazione(id){
   await modifica(id, [cella, sotto].filter(Boolean).map(sinistra));
   return null;
 }
+
+/* Testo barrato: nei dati si scrive ~~così~~ (es. l'importo pieno di una voce scontata); dopo la
+   compilazione il testo tra i segni diventa barrato e i segni si tolgono. */
+export async function barraTesto(id){
+  const doc = await leggi(id), richieste = [];
+  const giro = content => (content || []).forEach(el => {
+    if (el.table) return el.table.tableRows.forEach(r => r.tableCells.forEach(c => giro(c.content)));
+    if (!el.paragraph) return;
+    const t = el.paragraph.elements.map(e => e.textRun?.content ?? (e.endIndex - e.startIndex > 0 ? "￼".repeat(e.endIndex - e.startIndex) : "")).join("");
+    const base = el.paragraph.elements[0]?.startIndex ?? el.startIndex;
+    for (const m of t.matchAll(/~~(.+?)~~/g)) richieste.push({a: base + m.index, n: m[0].length});
+  });
+  giro(doc.body.content);
+  if (!richieste.length) return null;
+  // Dal fondo all'inizio: ogni modifica non sposta quelle ancora da fare.
+  const req = richieste.sort((x, y) => y.a - x.a).flatMap(({a, n}) => [
+    {updateTextStyle: {range: {startIndex: a + 2, endIndex: a + n - 2}, textStyle: {strikethrough: true}, fields: "strikethrough"}},
+    {deleteContentRange: {range: {startIndex: a + n - 2, endIndex: a + n}}},
+    {deleteContentRange: {range: {startIndex: a, endIndex: a + 2}}}
+  ]);
+  await modifica(id, req);
+  return null;
+}

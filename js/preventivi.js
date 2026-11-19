@@ -9,7 +9,7 @@ import { clienti, listino, righeCliente } from "./anagrafiche.js";
 import { prossimoCodice, prossimaVersione, registra, documenti, trova, datiVersione, rileggi } from "./registro.js";
 import { cartellaCliente, generaDocumento } from "./genera.js";
 import { aggiornaJSON } from "./drive.js";
-import { allineaInFondo, staccaUltimaNota } from "./impagina.js";
+import { allineaInFondo, staccaUltimaNota, barraTesto } from "./impagina.js";
 import { nomeFile, nomeCartellaCliente, slug } from "./nomi.js";
 import { rigaDocumento, filtra, linkDoc } from "./elenco.js";
 import { gestisciErrore, CollegamentoMancante } from "./errori.js";
@@ -92,7 +92,12 @@ const noleggioCalcolato = n => conMagg(Math.round((centesimi(n.prezzo) || 0) * 1
 const importoNoleggio = n => n.paga === "cliente" ? 0 : (centesimi(n.cifra) > 0 ? centesimi(n.cifra) : noleggioCalcolato(n));
 const stimaCliente = v => { const s = centesimi(v.stima); return s > 0 ? (v.fatt === "io" ? conMagg(s) : s) : 0; };
 
-function importoVoce(v){
+// Nel PDF l'importo barrato va su una riga e il nuovo sotto (\u000b = a capo nella stessa cella), senza staccare "€".
+const unito = t => t.replace(/ /g, "\u00a0");
+/* Importo di una voce. Con "Prezzo scontato" l'importo pieno si barra nel preventivo e conta il nuovo
+   importo scritto a mano (vuoto = 0). */
+const importoVoce = v => v?.on && v.modo === "tot" && v.barrato ? (centesimi(v.nuovoImporto) || 0) : importoPieno(v);
+function importoPieno(v){
   if (!v?.on || v.modo !== "tot") return 0;
   if (v.esterna) return centesimi(v.cifra) > 0 ? centesimi(v.cifra) : esternaCalcolata(v);
   if (v.unita === "Forfait") return centesimi(v.importo) || 0;
@@ -174,7 +179,8 @@ function vociCliente(){
       return {NOME: nomeVoce(id, v), DESCRIZIONE: s?.descrizione || "", RIF: rif, DETTAGLIO: dett,
         QUANTITA: v.modo === "tot" ? quantitaTesto(v, true) : (v.modo === "incl" ? quantitaTesto(v, true) : ""),
         PREZZO: v.modo === "tot" && !v.esterna && v.unita !== "Forfait" ? prezzoTesto(v) : "",
-        IMPORTO: v.modo === "incl" ? "Inclusa" : v.modo === "cons" ? (st > 0 ? "≈ " + eur(st) : "a consuntivo") : eur(imp)};
+        // ~~…~~: l'importo pieno, barrato dopo la compilazione (barraTesto in impagina.js).
+        IMPORTO: v.modo === "incl" ? "Inclusa" : v.modo === "cons" ? (st > 0 ? "≈ " + eur(st) : "a consuntivo") : v.barrato ? `~~${unito(eur(importoPieno(v)))}~~\u000b${unito(eur(imp))}` : eur(imp)};
     });
     if (f === "prod" && t.a.on) voci.push({NOME: `Attrezzatura tecnica, ${t.a.cliente}`, DESCRIZIONE: b.attNota.trim(), RIF: "", DETTAGLIO: giorniTesto(t.a.g),
       QUANTITA: giorniTesto(t.a.g), PREZZO: eur(t.a.alGiorno), IMPORTO: eur(t.a.totale)});
@@ -330,7 +336,7 @@ function prezzoTesto(v){
 function importoTesto(v){
   if (v.modo === "incl") return "Inclusa";
   if (v.modo === "cons") return stimaCliente(v) > 0 ? "≈ " + eur(stimaCliente(v)) : "A consuntivo";
-  return eur(importoVoce(v));
+  return v.barrato ? `<s>${eur(importoPieno(v))}</s> ${eur(importoVoce(v))}` : eur(importoVoce(v));
 }
 
 const MODI = [["tot", "Nel totale"], ["incl", "Inclusa"], ["cons", "A consuntivo"]];
@@ -359,7 +365,9 @@ function voceHTML(id, s, v){
     ${corpo}
     <div class="vimp" data-imp="${esc(id)}">${importoTesto(v)}</div>
     <div class="vmodo"><div class="seg" role="radiogroup" aria-label="Come si paga">${MODI.map(([k, l]) => `<label><input type="radio" name="m-${esc(id)}" value="${k}" data-qv="${esc(id)}" data-k="modo" ${v.modo === k ? "checked" : ""}>${l}</label>`).join("")}</div>${v.modo === "cons" ? `<span class="cnt">Fuori dal totale. Chi la fattura lo scegli al passo Totale.</span>` : ""}</div>
-    ${v.modo === "tot" ? `<label class="vincl"><input type="checkbox" data-qv="${esc(id)}" data-k="esterna" ${v.esterna ? "checked" : ""}> Spesa esterna: maggiorazione del ${qta(magg())}% sul costo</label>` : ""}
+    ${v.modo === "tot" ? `<label class="vincl"><input type="checkbox" data-qv="${esc(id)}" data-k="esterna" ${v.esterna ? "checked" : ""}> Spesa esterna: maggiorazione del ${qta(magg())}% sul costo</label>
+      <label class="vincl"><input type="checkbox" data-qv="${esc(id)}" data-k="barrato" ${v.barrato ? "checked" : ""}> Prezzo scontato: nel preventivo l’importo pieno compare barrato, accanto al nuovo</label>
+      ${v.barrato ? `<div class="vbody" style="margin:0;padding:0;border:0">${campo("nuovoImporto", "Nuovo importo (€)", "w-p", `placeholder="0,00"`)}<span class="cnt">Vuoto = 0 €. Importo pieno: ${eur(importoPieno(v))}</span></div>` : ""}` : ""}
     ${nota}
     ${s?.noteInterne ? `<p class="vint">Nota interna: ${esc(s.noteInterne)}</p>` : ""}
   </div></div>`;
@@ -442,7 +450,7 @@ function consuntivoHTML(){
 function anteprima(){
   const t = conto(), {fasi, note} = vociCliente(), esclusi = diciturEsclusi();
   return `<small class="cnt" style="display:block;margin-bottom:12px">Anteprima del preventivo</small>
-    ${fasi.length ? fasi.map(f => `<h4>${f.NOME}</h4><ul>${f.VOCE.map(v => `<li><span>${esc(v.NOME)}${v.RIF ? `<sup>${v.RIF}</sup>` : ""}${v.DESCRIZIONE ? `<br><small class="muted">${esc(v.DESCRIZIONE)}</small>` : ""}</span><span>${esc([v.QUANTITA, v.IMPORTO].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul>`).join("") : `<p class="muted">Nessuna voce.</p>`}
+    ${fasi.length ? fasi.map(f => `<h4>${f.NOME}</h4><ul>${f.VOCE.map(v => `<li><span>${esc(v.NOME)}${v.RIF ? `<sup>${v.RIF}</sup>` : ""}${v.DESCRIZIONE ? `<br><small class="muted">${esc(v.DESCRIZIONE)}</small>` : ""}</span><span>${esc([v.QUANTITA, v.IMPORTO].filter(Boolean).join(" · ")).replace(/~~(.+?)~~\u000b?/g, "<s>$1</s> ")}</span></li>`).join("")}</ul>`).join("") : `<p class="muted">Nessuna voce.</p>`}
     ${t.sconto ? `<div class="cnt sconto">Sconto −${eur(t.sconto)}${motivoSconto() ? ` · ${esc(motivoSconto())}` : ""}</div>` : ""}
     <div class="ptot">Totale ${eur(t.voluto)}</div>
     <div class="cnt">${esc(diciturTotale(t))}${esclusi ? " " + esc(esclusi) : ""}</div>
@@ -673,7 +681,7 @@ function valida(id){
 
 /* ---------- Aggiornamenti dal vivo ---------- */
 function dalVivo(){
-  document.querySelectorAll("[data-imp]").forEach(el => { const v = b.voci[el.dataset.imp]; if (v) el.textContent = importoTesto(v); });
+  document.querySelectorAll("[data-imp]").forEach(el => { const v = b.voci[el.dataset.imp]; if (v) el.innerHTML = importoTesto(v); });
   document.querySelectorAll("[data-calc]").forEach(el => { const v = b.voci[el.dataset.calc]; if (v) el.innerHTML = esternaTesto(v); });
   document.querySelectorAll("[data-ncalc]").forEach(el => { const n = b.noleggi[+el.dataset.ncalc]; if (n) el.innerHTML = noleggioTesto(n); });
   document.querySelectorAll("[data-nimp]").forEach(el => { const n = b.noleggi[+el.dataset.nimp]; if (n) el.textContent = importoNoleggioTesto(n); });
@@ -714,6 +722,7 @@ function campo(el){
         if (s){ const p = prezzoListino(s, v.unita); v.prezzo = p !== null ? cifraCampo(p) : ""; if ((v.unita === "Giornata" || v.unita === "Mezza giornata") && faseDi(s.cat) === "prod") v.qta = String(giorniDefault()); }
         rr = true; fuoco = sel;
       } else if (k === "esterna"){ v.esterna = el.checked; rr = true; fuoco = sel; }
+      else if (k === "barrato"){ v.barrato = el.checked; rr = true; fuoco = sel; }
       else if (k === "fatt" || k === "modo"){ v[k] = el.value; rr = true; fuoco = `${sel}[value="${el.value}"]`; }
       else {
         // Quando la quantità passa a una mezza (o la perde) compare o sparisce il prezzo della mezza.
@@ -822,7 +831,7 @@ async function genera(){
     const cartella = await cartellaCliente(f.archivioPreventivi.id, c);
     const dati = datiTemplate(codice), nome = nomeFile({codice, tipo: "PRV", titolo: b.titolo, cliente: c?.nome, versione: v});
     // Note tenute insieme; l'accettazione, se c'è, scende in fondo all'ultima pagina.
-    const ritocco = async idDoc => { await staccaUltimaNota(idDoc); return dati.ACCETTAZIONE ? allineaInFondo(idDoc, "ACCETTAZIONE") : null; };
+    const ritocco = async idDoc => { await barraTesto(idDoc); await staccaUltimaNota(idDoc); return dati.ACCETTAZIONE ? allineaInFondo(idDoc, "ACCETTAZIONE") : null; };
     const r = await generaDocumento({template: f.tplPrvDettagliato.id, cartella: cartella.id, nome, dati, ritocco}, x => passo("Preventivo: " + x.toLowerCase()));
     passo("Aggiorno il registro");
     const bozza = JSON.parse(JSON.stringify(b));
